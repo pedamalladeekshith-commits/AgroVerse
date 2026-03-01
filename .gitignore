@@ -1,0 +1,69 @@
+# ---------------- PYTHON ----------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# ---------------- IDE ----------------
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ---------------- BUILD ----------------
+build/
+dist/
+*.egg-info/
+*.exe
+
+# ---------------- ANDROID / GRADLE ----------------
+.gradle/
+.gradle_*
+**/.gradle/
+**/.gradle_*/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+/app/build
+/build
+
+# ---------------- FLUTTER ----------------
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+flutter_application_model_1/build/
+flutter_application_model_1/ios/Pods/
+flutter_application_model_1/ios/.symlinks/
+flutter_application_model_1/windows/flutter/ephemeral/
+flutter_application_model_1/linux/flutter/ephemeral/
+flutter_application_model_1/macos/flutter/ephemeral/
+
+# ---------------- MODELS ----------------
+*.h5
+*.keras
+*.pkl
+*.model
+
+# ---------------- DATASETS ----------------
+*.zip
+datasets/
+plant_disease_dataset_extracted/
+/Soil Test/
+/Soil Train/
+
+# ---------------- OTHER ----------------
+AgroVers.zip
+demo_files.zip
+output/
+backup_agroverse_modifications/
+*.log

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AgroVers</string>
+
+    <string name="nav_home">Home</string>
+    <string name="nav_analysis">Analysis</string>
+    <string name="nav_profile">Profile</string>
+
+    <string name="analysis_title">Analysis</string>
+    <string name="analysis_subtitle">Choose a tool to analyze your farm conditions (demo data).</string>
+    <string name="crop_recommendation">Crop Recommendation</string>
+    <string name="pest_disease_detection">Pest &amp; Disease Detection</string>
+    <string name="soil_monitoring">Soil Monitoring</string>
+
+    <string name="crop_recommendation_climate">Warm &amp; Humid</string>
+    <string name="crop_recommendation_soil">Loamy</string>
+    <string name="crop_recommendation_rainfall">900 mm (annual)</string>
+
+    <string name="pest_disease_detected">Early Blight (Demo)</string>
+
+    <string name="pest_disease_steps">1. Remove infected leaves.\n2. Avoid overhead watering.\n3. Use recommended fungicide.\n4. Consult local expert if severe.</string>
+    <string name="pest_disease_demo_complete">Demo detection complete</string>
+
+    <string name="soil_monitoring_moisture">%d%%</string>
+    <string name="soil_monitoring_temperature">%d°C</string>
+
+    <string name="soil_reco_moisture_low">Moisture is low. Consider irrigation and mulching to retain water.</string>
+    <string name="soil_reco_moisture_high">Moisture is high. Improve drainage and avoid over-irrigation.</string>
+    <string name="soil_reco_moisture_good">Moisture looks good. Maintain regular irrigation schedule.</string>
+    <string name="soil_reco_ph_acidic">\nSoil is slightly acidic. Consider liming as per local guidance.</string>
+    <string name="soil_reco_ph_alkaline">\nSoil is alkaline. Consider gypsum/organic matter as per guidance.</string>
+    <string name="soil_reco_ph_optimal">\nSoil pH is optimal for most crops.</string>
+
+    <string name="weather_temp">29°C</string>
+    <string name="weather_humidity">Humidity: 62%</string>
+    <string name="weather_wind">Wind: 10 km/h</string>
+    <string name="weather_forecast">Forecast: Partly cloudy with light rain in evening (Demo data)</string>
+</resources>
+
