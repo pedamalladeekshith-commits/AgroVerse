@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.40:5000';
+  static const String baseUrl = 'https://agroverse-1fed.onrender.com';
   static const String _apiKey = 'AGROVERSE_SECRET_TOKEN_2026';
   static const Duration _timeout = Duration(seconds: 10);
 
