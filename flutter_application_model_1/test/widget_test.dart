@@ -13,7 +13,7 @@ import 'package:flutter_application_model_1/main.dart';
 void main() {
   testWidgets('App starts smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const AgroVersApp());
+    await tester.pumpWidget(const AgroVersApp(isLoggedIn: false));
 
     // Verify that the app starts without crashing.
     expect(find.byType(MaterialApp), findsOneWidget);
