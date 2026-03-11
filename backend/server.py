@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import tensorflow as tf
 import numpy as np
 from PIL import Image
@@ -16,6 +17,7 @@ from services.location_service import analyze_regional_suitability
 from services.schemes_service import get_all_schemes
 
 app = Flask(__name__)
+CORS(app) # Enable CORS for all routes
 
 # --- Configuration ---
 API_KEY_SECRET = "AGROVERSE_SECRET_TOKEN_2026"
