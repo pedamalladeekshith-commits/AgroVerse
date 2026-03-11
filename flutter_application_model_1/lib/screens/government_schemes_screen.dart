@@ -79,10 +79,18 @@ class _GovernmentSchemesScreenState extends State<GovernmentSchemesScreen> {
       return false; 
     }).toList();
 
-    final financial = _allSchemes.where((s) => s['category'] == 'Financial Support').toList();
-    final insurance = _allSchemes.where((s) => s['category'] == 'Insurance').toList();
-    final irrigation = _allSchemes.where((s) => s['category'] == 'Irrigation').toList();
-    final other = _allSchemes.where((s) => !['Financial Support', 'Insurance', 'Irrigation'].contains(s['category'])).toList();
+    bool isFinancial(String cat) => cat.contains('Financial') || cat.contains('Support') && !cat.contains('Market');
+    bool isInsurance(String cat) => cat.contains('Insurance');
+    bool isIrrigation(String cat) => cat.contains('Irrigation') || cat.contains('Infrastructure');
+
+    final financial = _allSchemes.where((s) => isFinancial(s['category'])).toList();
+    final insurance = _allSchemes.where((s) => isInsurance(s['category'])).toList();
+    final irrigation = _allSchemes.where((s) => isIrrigation(s['category'])).toList();
+    final other = _allSchemes.where((s) => 
+      !isFinancial(s['category']) && 
+      !isInsurance(s['category']) && 
+      !isIrrigation(s['category'])
+    ).toList();
 
     return Scaffold(
       appBar: AppBar(

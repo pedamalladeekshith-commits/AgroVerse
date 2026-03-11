@@ -2,11 +2,16 @@ import json
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
-SCHEMES_PATH = os.path.join(PROJECT_ROOT, 'datasets', 'farming_schemes.json')
+# Attempt to find datasets folder in common locations
+SCHEMES_PATH = os.path.abspath(os.path.join(BASE_DIR, "..", "..", "datasets", "farming_schemes.json"))
+
+if not os.path.exists(SCHEMES_PATH):
+    # Fallback for different deployment structures
+    SCHEMES_PATH = os.path.abspath(os.path.join(os.getcwd(), "datasets", "farming_schemes.json"))
 
 def get_all_schemes():
     if not os.path.exists(SCHEMES_PATH):
+        print(f"Warning: Schemes file not found at {SCHEMES_PATH}")
         return []
     try:
         with open(SCHEMES_PATH, 'r') as f:

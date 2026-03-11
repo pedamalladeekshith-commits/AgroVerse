@@ -87,34 +87,47 @@ def _save_to_cache(key, data):
 def get_mock_records(commodity, state=None, district=None):
     """
     Returns high-quality mock market data for stability.
+    Ensures that if a state is provided, mock markets use that state.
     """
     base_price = random.randint(4500, 6500) 
-    target_state = state or "Gujarat"
+    target_state = state or "Karnataka" # Default to Karnataka if none provided
     
-    mock_markets = [
-        {"market": "Ahmedabad", "district": "Ahmedabad", "state": target_state, "offset": 200},
-        {"market": "Rajkot", "district": "Rajkot", "state": target_state, "offset": 100},
-        {"market": "Surat", "district": "Surat", "state": target_state, "offset": 50},
-        {"market": "Gondal", "district": "Rajkot", "state": target_state, "offset": -50},
-        {"market": "Indore", "district": "Indore", "state": "Madhya Pradesh", "offset": -100},
-        {"market": "Nagpur", "district": "Nagpur", "state": "Maharashtra", "offset": 150},
+    # Generate mock markets dynamically based on state
+    mock_locations = [
+        {"market": "Main Market", "district": district or "District A", "offset": random.randint(50, 200)},
+        {"market": "Regional Center", "district": "District B", "offset": random.randint(-50, 100)},
+        {"market": "Local Mandi", "district": "District C", "offset": random.randint(-150, 0)},
     ]
     
-    if state:
-        filtered = [m for m in mock_markets if m["state"].lower() == state.lower()]
-        if filtered: mock_markets = filtered
-        else:
-            for m in mock_markets: m["state"] = state
+    # If state is Gujarat, use known names
+    if target_state.lower() == "gujarat":
+        mock_locations = [
+            {"market": "Ahmedabad", "district": "Ahmedabad", "offset": 200},
+            {"market": "Rajkot", "district": "Rajkot", "offset": 100},
+            {"market": "Surat", "district": "Surat", "offset": 50},
+        ]
+    elif target_state.lower() == "karnataka":
+        mock_locations = [
+            {"market": "Bangalore", "district": "Bangalore Urban", "offset": 200},
+            {"market": "Mysore", "district": "Mysore", "offset": 120},
+            {"market": "Hubli", "district": "Dharwad", "offset": 80},
+        ]
+    elif target_state.lower() == "maharashtra":
+        mock_locations = [
+            {"market": "Mumbai", "district": "Mumbai", "offset": 250},
+            {"market": "Pune", "district": "Pune", "offset": 180},
+            {"market": "Nagpur", "district": "Nagpur", "offset": 100},
+        ]
 
     records = []
     today = datetime.now().strftime("%d/%m/%Y")
-    for m in mock_markets:
-        modal = base_price + m["offset"] + random.randint(-50, 50)
+    for m in mock_locations:
+        modal = base_price + m["offset"] + random.randint(-20, 20)
         records.append({
             "commodity": commodity.capitalize(),
             "market": m["market"],
             "district": m["district"],
-            "state": m["state"],
+            "state": target_state.capitalize(),
             "modal_price": int(modal),
             "min_price": int(modal - random.randint(100, 200)),
             "max_price": int(modal + random.randint(100, 200)),

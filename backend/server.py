@@ -202,12 +202,15 @@ def recommend_crop():
     city = data.get("city")
     if not city: return jsonify({"error": "City name is required"}), 400
     
+    # Optional parameters with safe defaults
     land_size = float(data.get("land_size", 1.0))
-
+    user_crop = data.get("crop") # The crop the user IS ALREADY GROWING or INTERESTED IN
+    
     weather, error = get_seasonal_weather(city)
     if error: return jsonify({"error": error}), 503
 
     try:
+        # 1. AI Recommendation (NPK + Weather based)
         feat_dict = {
             'N': float(data.get('N', 0)), 'P': float(data.get('P', 0)), 'K': float(data.get('K', 0)),
             'temperature': weather['avg_temp'], 'humidity': weather['avg_humidity'],
@@ -215,36 +218,41 @@ def recommend_crop():
         }
         features_df = pd.DataFrame([feat_dict])
         prediction = models['crop'].predict(features_df)[0]
-        crop_name = str(prediction).capitalize()
+        rec_crop_name = str(prediction).capitalize()
+
+        # If user specified a crop, use that for market/details, otherwise use recommended
+        target_crop = (user_crop or rec_crop_name).capitalize()
 
         state = weather.get('region', 'Karnataka')
         
-        # Calculate yield based on crop details and land size
-        crop_info = db['crops'].get(crop_name, {})
-        yield_per_hectare = crop_info.get('yield_per_hectare', 2.5) # Default if missing
+        # 2. Calculate yield based on crop details and land size
+        crop_info = db['crops'].get(target_crop, db['crops'].get(rec_crop_name, {}))
+        yield_per_hectare = crop_info.get('yield_per_hectare', 2.5) 
         acre_to_hectare = land_size / 2.47
         total_yield_tons = round(yield_per_hectare * acre_to_hectare, 2)
         
-        market_intel, _ = get_market_intelligence(crop_name, state, yield_tons=total_yield_tons)
+        # 3. Market Intelligence
+        market_intel, _ = get_market_intelligence(target_crop, state, yield_tons=total_yield_tons)
 
-        # Dynamic Reasoning Logic
+        # 4. Dynamic Reasoning Logic
         reasoning = []
         if float(data.get('ph', 6.5)) >= 6.0 and float(data.get('ph', 6.5)) <= 7.0:
             reasoning.append(f"Your soil pH ({data.get('ph')}) is in the ideal neutral range.")
         if weather['avg_temp'] > 25:
-            reasoning.append(f"The high average temperature ({weather['avg_temp']}°C) favors this tropical crop.")
+            reasoning.append(f"The high average temperature ({weather['avg_temp']}°C) favors {target_crop}.")
         if weather['total_rainfall'] > 800:
             reasoning.append(f"Abundant seasonal rainfall ({weather['total_rainfall']}mm) provides natural irrigation.")
 
-        explanation = " ".join(reasoning) if reasoning else f"AI suggests {crop_name} based on optimal soil nutrient levels."
+        explanation = " ".join(reasoning) if reasoning else f"AI recommends {rec_crop_name} based on nutrient profile."
 
         response = {
-            "recommended_crop": crop_name,
+            "recommended_crop": rec_crop_name,
+            "target_crop_details": target_crop,
             "confidence": f"{float(np.max(models['crop'].predict_proba(features_df)[0])):.0%}",
             "weather_summary": weather,
             "market_intelligence": market_intel,
             "pest_alerts": detect_pest_risk(weather['avg_temp'], weather['avg_humidity']),
-            "regional_insight": analyze_regional_suitability(city, crop_name),
+            "regional_insight": analyze_regional_suitability(city, target_crop),
             "crop_details": crop_info,
             "land_size_acres": land_size,
             "estimated_yield_tons": total_yield_tons,
@@ -253,37 +261,61 @@ def recommend_crop():
 
         return jsonify(response)
     except Exception as e:
+        import traceback
+        print(traceback.format_exc())
         return jsonify({"error": f"Advisory Pipeline Error: {str(e)}"}), 500
 
 @app.route("/predict_soil", methods=["POST"])
 @require_api_key
 def predict_soil():
-    file = request.files.get('file')
-    if not file: return jsonify({"error": "No file"}), 400
-    img = Image.open(io.BytesIO(file.read())).convert("RGB").resize((128, 128))
-    arr = np.expand_dims(np.array(img, dtype=np.float32), 0)
-    preds = models['soil'](arr, training=False).numpy()[0]
-    idx = np.argmax(preds)
-    return jsonify({"soil_type": db['soil_labels'][idx], "confidence": f"{preds[idx]:.1%}"})
+    try:
+        file = request.files.get('file')
+        if not file: return jsonify({"error": "No file uploaded"}), 400
+        
+        # Validate file is an image
+        try:
+            img = Image.open(io.BytesIO(file.read())).convert("RGB").resize((128, 128))
+        except Exception:
+            return jsonify({"error": "Invalid image file"}), 400
+            
+        arr = np.expand_dims(np.array(img, dtype=np.float32), 0)
+        preds = models['soil'](arr, training=False).numpy()[0]
+        idx = np.argmax(preds)
+        
+        return jsonify({
+            "soil_type": db['soil_labels'][idx], 
+            "confidence": f"{preds[idx]:.1%}"
+        })
+    except Exception as e:
+        return jsonify({"error": f"Soil Analysis Error: {str(e)}"}), 500
 
 @app.route("/predict_plant", methods=["POST"])
 @require_api_key
 def predict_plant():
-    file = request.files.get('file')
-    if not file: return jsonify({"error": "No file"}), 400
-    img = Image.open(io.BytesIO(file.read())).convert("RGB").resize((224, 224))
-    arr = np.expand_dims(np.array(img, dtype=np.float32), 0)
-    preds = models['plant'](arr, training=False).numpy()[0]
-    idx = np.argmax(preds)
-    
-    disease_name = db['plant_labels'][idx]
-    treatment = TREATMENT_DB.get(disease_name, "Consult an agricultural expert for specific treatment.")
-    
-    return jsonify({
-        "prediction": disease_name.replace("___", " ").replace("_", " "),
-        "confidence": f"{preds[idx]:.1%}",
-        "treatment": treatment
-    })
+    try:
+        file = request.files.get('file')
+        if not file: return jsonify({"error": "No file uploaded"}), 400
+        
+        # Validate file is an image
+        try:
+            img = Image.open(io.BytesIO(file.read())).convert("RGB").resize((224, 224))
+        except Exception:
+            return jsonify({"error": "Invalid image file"}), 400
+            
+        arr = np.expand_dims(np.array(img, dtype=np.float32), 0)
+        preds = models['plant'](arr, training=False).numpy()[0]
+        idx = np.argmax(preds)
+        
+        disease_name = db['plant_labels'][idx]
+        treatment = TREATMENT_DB.get(disease_name, "Consult an agricultural expert for specific treatment.")
+        
+        return jsonify({
+            "prediction": disease_name.replace("___", " ").replace("_", " "),
+            "confidence": f"{preds[idx]:.1%}",
+            "treatment": treatment
+        })
+    except Exception as e:
+        return jsonify({"error": f"Disease Detection Error: {str(e)}"}), 500
 
 @app.route("/schemes", methods=["GET"])
 @require_api_key

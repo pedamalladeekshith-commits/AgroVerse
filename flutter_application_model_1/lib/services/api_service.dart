@@ -45,11 +45,29 @@ class ApiService {
   }
 
   static dynamic _handleResponse(http.Response response) {
+    final contentType = response.headers['content-type'] ?? '';
+    
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return jsonDecode(response.body);
+      if (contentType.contains('application/json')) {
+        return jsonDecode(response.body);
+      } else {
+        // Successful status but not JSON? Probably a server config issue.
+        return response.body;
+      }
     } else {
-      final error = jsonDecode(response.body)['error'] ?? 'Unknown server error';
-      throw Exception(error);
+      // Error status code
+      if (contentType.contains('application/json')) {
+        try {
+          final errorData = jsonDecode(response.body);
+          final error = errorData['error'] ?? 'Unknown server error';
+          throw Exception(error);
+        } catch (e) {
+          throw Exception('Server returned error ${response.statusCode}');
+        }
+      } else {
+        // HTML or plain text error (like 500 Internal Server Error page)
+        throw Exception('Server Error (${response.statusCode}): The request could not be processed.');
+      }
     }
   }
 
