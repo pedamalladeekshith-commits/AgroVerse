@@ -49,10 +49,11 @@ flutter_application_model_1/linux/flutter/ephemeral/
 flutter_application_model_1/macos/flutter/ephemeral/
 
 # ---------------- MODELS ----------------
-*.h5
-*.keras
-*.pkl
-*.model
+# Allow AI models to be committed for deployment
+# *.h5
+# *.keras
+# *.pkl
+# *.model
 
 # ---------------- DATASETS ----------------
 *.zip
