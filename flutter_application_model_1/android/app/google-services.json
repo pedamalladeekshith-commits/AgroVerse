@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "278792065045",
+    "project_id": "agroverse-bb94a",
+    "storage_bucket": "agroverse-bb94a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:278792065045:android:d526f49f629a8e1e947e1c",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_model_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPLKOlfHYWlXtckLePdhcjld56rak_Vkg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,178 @@
+{
+    "rice": {
+        "ideal_soil": "Clay or loamy soil",
+        "sowing_season": "June to July",
+        "harvest_season": "October to November",
+        "irrigation": "Every 5 to 7 days",
+        "fertilizer": "Nitrogen rich fertilizer",
+        "market_demand": "High"
+    },
+    "maize": {
+        "ideal_soil": "Suitable soil for maize",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "chickpea": {
+        "ideal_soil": "Suitable soil for chickpea",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "kidneybeans": {
+        "ideal_soil": "Suitable soil for kidneybeans",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "pigeonpeas": {
+        "ideal_soil": "Suitable soil for pigeonpeas",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "mothbeans": {
+        "ideal_soil": "Suitable soil for mothbeans",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "mungbean": {
+        "ideal_soil": "Suitable soil for mungbean",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "blackgram": {
+        "ideal_soil": "Suitable soil for blackgram",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "lentil": {
+        "ideal_soil": "Suitable soil for lentil",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "pomegranate": {
+        "ideal_soil": "Suitable soil for pomegranate",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "banana": {
+        "ideal_soil": "Suitable soil for banana",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "mango": {
+        "ideal_soil": "Suitable soil for mango",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "grapes": {
+        "ideal_soil": "Suitable soil for grapes",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "watermelon": {
+        "ideal_soil": "Suitable soil for watermelon",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "muskmelon": {
+        "ideal_soil": "Suitable soil for muskmelon",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "apple": {
+        "ideal_soil": "Suitable soil for apple",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "orange": {
+        "ideal_soil": "Suitable soil for orange",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "papaya": {
+        "ideal_soil": "Suitable soil for papaya",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "coconut": {
+        "ideal_soil": "Suitable soil for coconut",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "cotton": {
+        "ideal_soil": "Suitable soil for cotton",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "jute": {
+        "ideal_soil": "Suitable soil for jute",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    },
+    "coffee": {
+        "ideal_soil": "Suitable soil for coffee",
+        "sowing_season": "Determined by local climate",
+        "harvest_season": "Determined by variety",
+        "irrigation": "Moderate watering",
+        "fertilizer": "Balanced NPK",
+        "market_demand": "Moderate to High"
+    }
+}

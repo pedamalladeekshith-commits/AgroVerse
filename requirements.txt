@@ -1,0 +1,10 @@
+Flask
+tensorflow
+Pillow
+Werkzeug
+numpy
+pandas
+scikit-learn
+joblib
+requests
+gunicorn
