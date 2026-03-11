@@ -33,17 +33,16 @@ def require_api_key(f):
     return decorated
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
 
-SOIL_MODEL_PATH = os.path.join(PROJECT_ROOT, 'models', 'soil_model.h5')
-PLANT_MODEL_PATH = os.path.join(PROJECT_ROOT, 'plant_model.keras')
-CROP_MODEL_PATH = os.path.join(PROJECT_ROOT, 'models', 'crop_model.pkl')
+SOIL_MODEL_PATH = os.path.join(BASE_DIR, 'models', 'soil_model.h5')
+PLANT_MODEL_PATH = os.path.join(BASE_DIR, 'models', 'plant_model.keras')
+CROP_MODEL_PATH = os.path.join(BASE_DIR, 'models', 'crop_model.pkl')
 
-SOIL_LABELS_PATH = os.path.join(PROJECT_ROOT, 'datasets', 'soil', 'soil_labels.txt')
-PLANT_LABELS_PATH = os.path.join(PROJECT_ROOT, 'datasets', 'plant_disease', 'plant_labels.txt')
-CROP_DETAILS_PATH = os.path.join(PROJECT_ROOT, 'crop_details.json')
-FARM_LOG_PATH = os.path.join(PROJECT_ROOT, 'backend', 'database', 'farm_log.json')
-COMMUNITY_PATH = os.path.join(PROJECT_ROOT, 'backend', 'database', 'community.json')
+SOIL_LABELS_PATH = os.path.join(BASE_DIR, '..', 'datasets', 'soil', 'soil_labels.txt')
+PLANT_LABELS_PATH = os.path.join(BASE_DIR, '..', 'datasets', 'plant_disease', 'plant_labels.txt')
+CROP_DETAILS_PATH = os.path.join(BASE_DIR, '..', 'crop_details.json')
+FARM_LOG_PATH = os.path.join(BASE_DIR, 'database', 'farm_log.json')
+COMMUNITY_PATH = os.path.join(BASE_DIR, 'database', 'community.json')
 
 # --- Disease Treatment Database ---
 TREATMENT_DB = {
