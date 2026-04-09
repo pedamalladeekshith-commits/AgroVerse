@@ -1,10 +1,11 @@
-Flask
+flask
+flask-cors
 tensorflow
-Pillow
-Werkzeug
 numpy
 pandas
 scikit-learn
 joblib
-requests
+pillow
 gunicorn
+requests
+geopy

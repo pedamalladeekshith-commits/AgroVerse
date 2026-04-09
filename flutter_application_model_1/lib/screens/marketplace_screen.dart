@@ -21,10 +21,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   final List<String> _states = ['Karnataka', 'Maharashtra', 'Punjab', 'Gujarat', 'Uttar Pradesh'];
 
   bool _loading = false;
+  bool _isInitialized = false;
   Map<String, dynamic>? _marketData;
   String? _error;
 
-  final currencyFormat = NumberFormat.currency(locale: 'HI', symbol: '₹', decimalDigits: 0);
+  final currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: 'Rs ', decimalDigits: 0);
 
   @override
   void initState() {
@@ -33,7 +34,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Future<void> _loadProfileAndFetch() async {
+    if (_isInitialized) return;
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+
     setState(() {
       _farmSize = prefs.getString('farm_size') ?? "5.0";
       _selectedState = (prefs.getString('user_location') ?? "Karnataka").split(',').last.trim();
@@ -45,6 +49,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Future<void> _fetchMarket() async {
+    if (!mounted) return;
+
     setState(() {
       _loading = true;
       _error = null;
@@ -56,17 +62,24 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         _selectedCommodity, 
         state: _selectedState,
       );
-      setState(() {
-        _marketData = result;
-      });
+      if (mounted) {
+        setState(() {
+          _marketData = result;
+          _isInitialized = true;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+        });
+      }
     } finally {
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -91,6 +104,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     onChanged: (val) {
                       if (val != null) {
                         setState(() => _selectedCommodity = val);
+                        // Trigger fetch manually on change
+                        _isInitialized = false; 
+                        _fetchMarket();
                       }
                     },
                   ),
@@ -104,6 +120,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     onChanged: (val) {
                       if (val != null) {
                         setState(() => _selectedState = val);
+                        // Trigger fetch manually on change
+                        _isInitialized = false;
+                        _fetchMarket();
                       }
                     },
                   ),
@@ -112,7 +131,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _fetchMarket,
+              onPressed: () {
+                _isInitialized = false;
+                _fetchMarket();
+              },
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
                 backgroundColor: Colors.green[700],
@@ -150,7 +172,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text("₹${m['price'] ?? m['modal_price'] ?? '--'}", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text("Rs ${m['price'] ?? m['modal_price'] ?? '--'}", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16)),
                             Text("per ${m['unit'] ?? 'Qtl'}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
                           ],
                         ),
@@ -297,7 +319,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildInfoChip("Price", "₹$modalPrice/Qtl"),
+                _buildInfoChip("Price", "Rs $modalPrice/Qtl"),
                 _buildInfoChip("Yield", "2.0 Tons/Acre"),
                 _buildInfoChip("Size", "$_farmSize Acres"),
               ],

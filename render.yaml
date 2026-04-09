@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: agroverse-api
+    env: python
+    rootDir: .
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --chdir backend server:app --workers 3 --timeout 120
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.13
+      - key: AGROVERSE_API_SECRET
+        sync: false
+      - key: WEATHER_API_KEY
+        sync: false
+      - key: MARKET_API_KEY
+        sync: false

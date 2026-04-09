@@ -12,6 +12,7 @@ class GovernmentSchemesScreen extends StatefulWidget {
 
 class _GovernmentSchemesScreenState extends State<GovernmentSchemesScreen> {
   bool _loading = false;
+  bool _isInitialized = false;
   List<dynamic> _allSchemes = [];
   String? _error;
   double _farmSize = 0;
@@ -23,7 +24,10 @@ class _GovernmentSchemesScreenState extends State<GovernmentSchemesScreen> {
   }
 
   Future<void> _loadProfileAndSchemes() async {
+    if (_isInitialized) return;
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    
     setState(() {
       _farmSize = double.tryParse(prefs.getString('farm_size') ?? "0") ?? 0;
     });
@@ -31,6 +35,8 @@ class _GovernmentSchemesScreenState extends State<GovernmentSchemesScreen> {
   }
 
   Future<void> _fetchSchemes() async {
+    if (!mounted) return;
+    
     setState(() {
       _loading = true;
       _error = null;
@@ -38,17 +44,24 @@ class _GovernmentSchemesScreenState extends State<GovernmentSchemesScreen> {
 
     try {
       final result = await ApiService.getSchemes();
-      setState(() {
-        _allSchemes = result;
-      });
+      if (mounted) {
+        setState(() {
+          _allSchemes = result;
+          _isInitialized = true;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+        });
+      }
     } finally {
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -73,7 +86,7 @@ class _GovernmentSchemesScreenState extends State<GovernmentSchemesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Categorization Logic
+    // UI logic (Categorization) remains unchanged
     final recommended = _allSchemes.where((s) {
       if (s['target_farmer'] == 'small' && _farmSize < 5) return true;
       return false; 

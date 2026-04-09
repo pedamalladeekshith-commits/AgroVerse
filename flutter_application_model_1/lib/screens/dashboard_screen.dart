@@ -11,6 +11,7 @@ import 'crop_recommendation_screen.dart';
 import 'marketplace_screen.dart';
 import 'government_schemes_screen.dart';
 import 'shop_screen.dart';
+import 'community_forum_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -23,6 +24,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic>? _weatherData;
   Map<String, dynamic>? _marketData;
   bool _isLoading = true;
+  bool _isInitialized = false; 
   String _currentCity = "Detecting...";
   String _userName = "Farmer";
   String _userLocation = "Karnataka";
@@ -34,23 +36,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _initializeApp() async {
+    if (_isInitialized) return; 
     if (!mounted) return;
+    
+    debugPrint("Dashboard: Initializing App Data...");
     setState(() => _isLoading = true);
     
     try {
       // 1. Load local profile (Instant)
       final prefs = await SharedPreferences.getInstance();
+      if (!mounted) return;
+      
       _userName = prefs.getString('user_name') ?? "Farmer";
       _userLocation = prefs.getString('user_location') ?? "Karnataka";
 
       // 2. Determine Location
       Position position = await _determinePosition();
       List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      if (!mounted) return;
+      
       if (placemarks.isNotEmpty) {
         _currentCity = placemarks[0].locality ?? "Unknown Location";
       }
 
       // 3. Parallel Network Fetch (Fastest UX)
+      debugPrint("Dashboard: Fetching weather and market data...");
       final results = await Future.wait([
         ApiService.getCurrentWeather(lat: position.latitude, lon: position.longitude),
         ApiService.getMarketPrices("rice", state: _userLocation.split(',').last.trim()),
@@ -61,15 +71,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _weatherData = results[0] as Map<String, dynamic>;
           _marketData = results[1] as Map<String, dynamic>;
           _isLoading = false;
+          _isInitialized = true;
+          debugPrint("Dashboard: Initialization complete.");
         });
       }
     } catch (e) {
       debugPrint("Dashboard Init Error: $e");
-      _fetchFallbackData();
+      if (mounted) {
+        _fetchFallbackData();
+      }
     }
   }
 
   Future<void> _fetchFallbackData() async {
+    if (!mounted) return;
+    debugPrint("Dashboard: Fetching fallback data...");
     try {
       final results = await Future.wait([
         ApiService.getCurrentWeather(city: "Bangalore"),
@@ -81,10 +97,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _marketData = results[1] as Map<String, dynamic>;
           _currentCity = "Bangalore (Default)";
           _isLoading = false;
+          _isInitialized = true;
+          debugPrint("Dashboard: Fallback data loaded.");
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isInitialized = true;
+        });
+      }
     }
   }
 
@@ -102,6 +125,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // build() method should remain clean of logic
     return Scaffold(
       appBar: AppBar(
         title: const Text("AgroVerse Dashboard"),
@@ -109,7 +133,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         elevation: 0,
       ),
       body: RefreshIndicator(
-        onRefresh: _initializeApp,
+        onRefresh: () async {
+          _isInitialized = false;
+          await _initializeApp();
+        },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16.0),
@@ -159,7 +186,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text("Weather in $_currentCity", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                Text("Temp: ${_weatherData!['temperature']}°C | Hum: ${_weatherData!['humidity']}%"),
+                Text("Temp: ${_weatherData!['temperature']} C | Hum: ${_weatherData!['humidity']}%"),
                 Text("Condition: ${_weatherData!['condition']}"),
               ],
             ),
@@ -185,7 +212,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _buildActionCard(context, "Schemes", Icons.policy, Colors.blue, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GovernmentSchemesScreen()))),
         _buildActionCard(context, "Agro Shop", Icons.shopping_bag, Colors.deepOrange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen()))),
         _buildActionCard(context, "Farm Log", Icons.edit_note, Colors.purple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FarmLogScreen()))),
-        _buildActionCard(context, "Community", Icons.groups, Colors.indigo, () {}),
+        _buildActionCard(context, "Community", Icons.groups, Colors.indigo, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CommunityForumScreen()))),
       ],
     );
   }
@@ -205,7 +232,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               leading: const Icon(Icons.trending_up, color: Colors.green),
               title: Text("${r['market']} Mandi"),
               subtitle: Text("${r['commodity']}"),
-              trailing: Text("₹${r['price'] ?? r['modal_price'] ?? '--'} / ${r['unit'] ?? 'Qtl'}", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+              trailing: Text("Rs ${r['price'] ?? r['modal_price'] ?? '--'} / ${r['unit'] ?? 'Qtl'}", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
             )).toList(),
             TextButton(
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MarketplaceScreen())),

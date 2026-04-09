@@ -17,32 +17,36 @@ from services.location_service import analyze_regional_suitability
 from services.schemes_service import get_all_schemes
 
 app = Flask(__name__)
-CORS(app) # Enable CORS for all routes
+CORS(app)
 
 # --- Configuration ---
-API_KEY_SECRET = "AGROVERSE_SECRET_TOKEN_2026"
+API_KEY_SECRET = os.getenv("AGROVERSE_API_SECRET", "myAgroversePrivateKey2026")
+
 
 def require_api_key(f):
     from functools import wraps
+
     @wraps(f)
     def decorated(*args, **kwargs):
-        api_key = request.headers.get('x-api-key')
+        api_key = request.headers.get("x-api-key")
         if api_key and api_key == API_KEY_SECRET:
             return f(*args, **kwargs)
         return jsonify({"error": "Unauthorized: Invalid API Key"}), 401
+
     return decorated
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-SOIL_MODEL_PATH = os.path.join(BASE_DIR, 'models', 'soil_model.h5')
-PLANT_MODEL_PATH = os.path.join(BASE_DIR, 'models', 'plant_model.keras')
-CROP_MODEL_PATH = os.path.join(BASE_DIR, 'models', 'crop_model.pkl')
+SOIL_MODEL_PATH = os.path.join(BASE_DIR, "models", "soil_model.h5")
+PLANT_MODEL_PATH = os.path.join(BASE_DIR, "models", "plant_model.keras")
+CROP_MODEL_PATH = os.path.join(BASE_DIR, "models", "crop_model.pkl")
 
-SOIL_LABELS_PATH = os.path.join(BASE_DIR, 'models', 'soil_labels.txt')
-PLANT_LABELS_PATH = os.path.join(BASE_DIR, 'models', 'plant_labels.txt')
-CROP_DETAILS_PATH = os.path.join(BASE_DIR, '..', 'crop_details.json')
-FARM_LOG_PATH = os.path.join(BASE_DIR, 'database', 'farm_log.json')
-COMMUNITY_PATH = os.path.join(BASE_DIR, 'database', 'community.json')
+SOIL_LABELS_PATH = os.path.join(BASE_DIR, "models", "soil_labels.txt")
+PLANT_LABELS_PATH = os.path.join(BASE_DIR, "models", "plant_labels.txt")
+CROP_DETAILS_PATH = os.path.join(BASE_DIR, "..", "crop_details.json")
+FARM_LOG_PATH = os.path.join(BASE_DIR, "database", "farm_log.json")
+COMMUNITY_PATH = os.path.join(BASE_DIR, "database", "community.json")
 
 # --- Disease Treatment Database ---
 TREATMENT_DB = {
@@ -83,40 +87,114 @@ TREATMENT_DB = {
     "Tomato___Target_Spot": "Apply fungicides. Ensure proper spacing for airflow.",
     "Tomato___Tomato_Yellow_Leaf_Curl_Virus": "Control whiteflies with insecticides or reflective mulches.",
     "Tomato___Tomato_mosaic_virus": "Remove infected plants. Avoid handling plants after using tobacco.",
-    "Tomato___healthy": "No treatment needed. Support plants with cages or stakes."
+    "Tomato___healthy": "No treatment needed. Support plants with cages or stakes.",
 }
 
 # --- Global Resources ---
 models = {}
 db = {}
+resource_errors = {}
 
-def load_resources():
-    print("\n" + "="*50 + "\n      AgroVerse Intelligence Server Booting\n" + "="*50)
+
+def _load_json_file(path):
+    with open(path, "r", encoding="utf-8") as file_obj:
+        return json.load(file_obj)
+
+
+def _load_label_file(path):
+    with open(path, "r", encoding="utf-8") as file_obj:
+        return [line.strip() for line in file_obj if line.strip()]
+
+
+def _ensure_static_data():
+    if "soil_labels" not in db:
+        db["soil_labels"] = _load_label_file(SOIL_LABELS_PATH)
+    if "plant_labels" not in db:
+        db["plant_labels"] = _load_label_file(PLANT_LABELS_PATH)
+    if "crops" not in db:
+        db["crops"] = _load_json_file(CROP_DETAILS_PATH)
+
+
+def _load_model(model_name):
+    if model_name in models:
+        return models[model_name]
+
+    os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
     try:
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-        models['soil'] = tf.keras.models.load_model(SOIL_MODEL_PATH, compile=False)
-        models['plant'] = tf.keras.models.load_model(PLANT_MODEL_PATH, compile=False)
-        models['crop'] = joblib.load(CROP_MODEL_PATH)
-        
-        with open(SOIL_LABELS_PATH, 'r') as f: db['soil_labels'] = [l.strip() for l in f]
-        with open(PLANT_LABELS_PATH, 'r') as f: db['plant_labels'] = [l.strip() for l in f]
-        with open(CROP_DETAILS_PATH, 'r') as f: db['crops'] = json.load(f)
-        
-        print("✓ All AI Models and Knowledge Bases initialized.")
-    except Exception as e:
-        print(f"❌ Boot Error: {e}")
+        if model_name == "soil":
+            models["soil"] = tf.keras.models.load_model(SOIL_MODEL_PATH, compile=False)
+        elif model_name == "plant":
+            models["plant"] = tf.keras.models.load_model(PLANT_MODEL_PATH, compile=False)
+        elif model_name == "crop":
+            models["crop"] = joblib.load(CROP_MODEL_PATH)
+        else:
+            raise ValueError(f"Unknown model requested: {model_name}")
 
-load_resources()
+        resource_errors.pop(model_name, None)
+        return models[model_name]
+    except Exception as exc:
+        resource_errors[model_name] = str(exc)
+        raise
+
+
+def _model_not_ready_response(model_name, feature_name):
+    return jsonify(
+        {
+            "error": f"{feature_name} is temporarily unavailable.",
+            "detail": resource_errors.get(model_name, "Model could not be loaded."),
+        }
+    ), 503
+
+
+def initialize_server():
+    print("\n" + "=" * 50 + "\n      AgroVerse Intelligence Server Booting\n" + "=" * 50)
+    try:
+        _ensure_static_data()
+        _load_model("crop")
+        print("Core advisory resources initialized.")
+    except Exception as exc:
+        print(f"Boot warning: {exc}")
+
+
+initialize_server()
 
 # --- API Endpoints ---
 
+
 @app.route("/", methods=["GET"])
 def index():
-    return jsonify({
-        "status": "AgroVerse Intelligence Server is running", 
-        "version": "1.0.0",
-        "endpoints": ["/current_weather", "/market_prices", "/recommend_crop", "/predict_soil", "/predict_plant", "/schemes", "/farm_logs", "/posts"]
-    })
+    return jsonify(
+        {
+            "status": "AgroVerse Intelligence Server is running",
+            "version": "1.0.0",
+            "endpoints": [
+                "/current_weather",
+                "/market_prices",
+                "/recommend_crop",
+                "/predict_soil",
+                "/predict_plant",
+                "/schemes",
+                "/farm_logs",
+                "/posts",
+            ],
+        }
+    )
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify(
+        {
+            "status": "ok",
+            "service": "agroverse-api",
+            "models": {
+                "crop": "loaded" if "crop" in models else "unavailable",
+                "plant": "loaded" if "plant" in models else "lazy",
+                "soil": "loaded" if "soil" in models else "lazy",
+            },
+        }
+    )
+
 
 @app.route("/current_weather", methods=["POST"])
 @require_api_key
@@ -124,23 +202,24 @@ def current_weather():
     data = request.get_json()
     if not data:
         return jsonify({"error": "No data"}), 400
-    
+
     from services.weather_service import get_weather_by_coords
-    
-    lat = data.get('lat')
-    lon = data.get('lon')
-    city = data.get('city')
-    
+
+    lat = data.get("lat")
+    lon = data.get("lon")
+    city = data.get("city")
+
     if lat and lon:
         weather, error = get_weather_by_coords(lat, lon)
     elif city:
         weather, error = get_weather_data(city)
     else:
         return jsonify({"error": "City or Coordinates required"}), 400
-        
+
     if error:
         return jsonify({"error": error}), 503
     return jsonify(weather)
+
 
 @app.route("/market_prices", methods=["POST"])
 @require_api_key
@@ -148,99 +227,102 @@ def market_prices():
     data = request.get_json()
     if not data:
         return jsonify({"error": "Missing input data"}), 400
-    
-    # Accept both 'commodity' and 'crop' keys
-    commodity = data.get('commodity') or data.get('crop')
-    
+
+    commodity = data.get("commodity") or data.get("crop")
     if not commodity:
         return jsonify({"error": "Commodity or Crop is required"}), 400
-    
-    state = data.get('state')
-    district = data.get('district')
-    
-    # For Profit Calculation
+
+    state = data.get("state")
+    district = data.get("district")
+
     try:
-        farm_size = float(data.get('farm_size', 5.0))
-        yield_per_acre = float(data.get('yield_per_acre', 2.0))
+        farm_size = float(data.get("farm_size", 5.0))
+        yield_per_acre = float(data.get("yield_per_acre", 2.0))
     except (ValueError, TypeError):
         farm_size = 5.0
         yield_per_acre = 2.0
 
     records, error = get_market_prices(commodity, state, district)
-    
-    # With mock fallback, records should always exist, but we keep the check for safety
     if error and not records:
         return jsonify({"error": error}), 503
-    
+
     best = get_best_market(records)
-    
-    # Calculate revenue if we have a best market
+
     estimated_revenue = 0
     if best:
-        modal_price = best.get('modal_price', 0)
-        # Formula: Total Revenue = farm_size * yield_per_acre * modal_price * 10
+        modal_price = best.get("modal_price", 0)
         estimated_revenue = round(farm_size * yield_per_acre * modal_price * 10, 2)
-        best['estimated_revenue'] = estimated_revenue
-        best['farm_size'] = farm_size
-        best['yield_per_acre'] = yield_per_acre
+        best["estimated_revenue"] = estimated_revenue
+        best["farm_size"] = farm_size
+        best["yield_per_acre"] = yield_per_acre
 
-    return jsonify({
-        "commodity": commodity.capitalize(),
-        "best_market": best,
-        "market_comparison": records,
-        "estimated_revenue": estimated_revenue,
-        "farm_size": farm_size,
-        "yield_per_acre": yield_per_acre
-    })
+    return jsonify(
+        {
+            "commodity": commodity.capitalize(),
+            "best_market": best,
+            "market_comparison": records,
+            "estimated_revenue": estimated_revenue,
+            "farm_size": farm_size,
+            "yield_per_acre": yield_per_acre,
+        }
+    )
+
 
 @app.route("/recommend_crop", methods=["POST"])
 @require_api_key
 def recommend_crop():
     data = request.get_json()
-    if not data: return jsonify({"error": "Missing input data"}), 400
-
-    city = data.get("city")
-    if not city: return jsonify({"error": "City name is required"}), 400
-    
-    # Optional parameters with safe defaults
-    land_size = float(data.get("land_size", 1.0))
-    user_crop = data.get("crop") # The crop the user IS ALREADY GROWING or INTERESTED IN
-    
-    weather, error = get_seasonal_weather(city)
-    if error: return jsonify({"error": error}), 503
+    if not data:
+        return jsonify({"error": "Missing input data"}), 400
 
     try:
-        # 1. AI Recommendation (NPK + Weather based)
+        _ensure_static_data()
+        crop_model = _load_model("crop")
+    except Exception:
+        return _model_not_ready_response("crop", "Crop recommendation")
+
+    city = data.get("city")
+    if not city:
+        return jsonify({"error": "City name is required"}), 400
+
+    land_size = float(data.get("land_size", 1.0))
+    user_crop = data.get("crop")
+
+    weather, error = get_seasonal_weather(city)
+    if error:
+        return jsonify({"error": error}), 503
+
+    try:
         feat_dict = {
-            'N': float(data.get('N', 0)), 'P': float(data.get('P', 0)), 'K': float(data.get('K', 0)),
-            'temperature': weather['avg_temp'], 'humidity': weather['avg_humidity'],
-            'ph': float(data.get('ph', 6.5)), 'rainfall': weather['total_rainfall']
+            "N": float(data.get("N", 0)),
+            "P": float(data.get("P", 0)),
+            "K": float(data.get("K", 0)),
+            "temperature": weather["avg_temp"],
+            "humidity": weather["avg_humidity"],
+            "ph": float(data.get("ph", 6.5)),
+            "rainfall": weather["total_rainfall"],
         }
         features_df = pd.DataFrame([feat_dict])
-        prediction = models['crop'].predict(features_df)[0]
+        prediction = crop_model.predict(features_df)[0]
         rec_crop_name = str(prediction).capitalize()
 
-        # If user specified a crop, use that for market/details, otherwise use recommended
         target_crop = (user_crop or rec_crop_name).capitalize()
+        state = weather.get("region", "Karnataka")
 
-        state = weather.get('region', 'Karnataka')
-        
-        # 2. Calculate yield based on crop details and land size
-        crop_info = db['crops'].get(target_crop, db['crops'].get(rec_crop_name, {}))
-        yield_per_hectare = crop_info.get('yield_per_hectare', 2.5) 
+        crop_info = db["crops"].get(target_crop, db["crops"].get(rec_crop_name, {}))
+        yield_per_hectare = crop_info.get("yield_per_hectare", 2.5)
         acre_to_hectare = land_size / 2.47
         total_yield_tons = round(yield_per_hectare * acre_to_hectare, 2)
-        
-        # 3. Market Intelligence
+
         market_intel, _ = get_market_intelligence(target_crop, state, yield_tons=total_yield_tons)
 
-        # 4. Dynamic Reasoning Logic
         reasoning = []
-        if float(data.get('ph', 6.5)) >= 6.0 and float(data.get('ph', 6.5)) <= 7.0:
-            reasoning.append(f"Your soil pH ({data.get('ph')}) is in the ideal neutral range.")
-        if weather['avg_temp'] > 25:
-            reasoning.append(f"The high average temperature ({weather['avg_temp']}°C) favors {target_crop}.")
-        if weather['total_rainfall'] > 800:
+        ph_value = float(data.get("ph", 6.5))
+        if 6.0 <= ph_value <= 7.0:
+            reasoning.append(f"Your soil pH ({ph_value}) is in the ideal neutral range.")
+        if weather["avg_temp"] > 25:
+            reasoning.append(f"The high average temperature ({weather['avg_temp']} C) favors {target_crop}.")
+        if weather["total_rainfall"] > 800:
             reasoning.append(f"Abundant seasonal rainfall ({weather['total_rainfall']}mm) provides natural irrigation.")
 
         explanation = " ".join(reasoning) if reasoning else f"AI recommends {rec_crop_name} based on nutrient profile."
@@ -248,154 +330,197 @@ def recommend_crop():
         response = {
             "recommended_crop": rec_crop_name,
             "target_crop_details": target_crop,
-            "confidence": f"{float(np.max(models['crop'].predict_proba(features_df)[0])):.0%}",
+            "confidence": f"{float(np.max(crop_model.predict_proba(features_df)[0])):.0%}",
             "weather_summary": weather,
             "market_intelligence": market_intel,
-            "pest_alerts": detect_pest_risk(weather['avg_temp'], weather['avg_humidity']),
+            "pest_alerts": detect_pest_risk(weather["avg_temp"], weather["avg_humidity"]),
             "regional_insight": analyze_regional_suitability(city, target_crop),
             "crop_details": crop_info,
             "land_size_acres": land_size,
             "estimated_yield_tons": total_yield_tons,
-            "explanation": explanation
+            "explanation": explanation,
         }
-
         return jsonify(response)
-    except Exception as e:
+    except Exception as exc:
         import traceback
+
         print(traceback.format_exc())
-        return jsonify({"error": f"Advisory Pipeline Error: {str(e)}"}), 500
+        return jsonify({"error": f"Advisory Pipeline Error: {str(exc)}"}), 500
+
 
 @app.route("/predict_soil", methods=["POST"])
 @require_api_key
 def predict_soil():
     try:
-        file = request.files.get('file')
-        if not file: return jsonify({"error": "No file uploaded"}), 400
-        
-        # Validate file is an image
+        _ensure_static_data()
+        soil_model = _load_model("soil")
+    except Exception:
+        return _model_not_ready_response("soil", "Soil analysis")
+
+    try:
+        file = request.files.get("file")
+        if not file:
+            return jsonify({"error": "No file uploaded"}), 400
+
         try:
             img = Image.open(io.BytesIO(file.read())).convert("RGB").resize((128, 128))
         except Exception:
             return jsonify({"error": "Invalid image file"}), 400
-            
+
         arr = np.expand_dims(np.array(img, dtype=np.float32), 0)
-        preds = models['soil'](arr, training=False).numpy()[0]
-        idx = np.argmax(preds)
-        
-        return jsonify({
-            "soil_type": db['soil_labels'][idx], 
-            "confidence": f"{preds[idx]:.1%}"
-        })
-    except Exception as e:
-        return jsonify({"error": f"Soil Analysis Error: {str(e)}"}), 500
+        preds = soil_model(arr, training=False).numpy()[0]
+        idx = int(np.argmax(preds))
+
+        if idx >= len(db["soil_labels"]):
+            raise ValueError("Soil labels are out of sync with the loaded model.")
+
+        return jsonify(
+            {
+                "soil_type": db["soil_labels"][idx],
+                "confidence": f"{preds[idx]:.1%}",
+            }
+        )
+    except Exception as exc:
+        return jsonify({"error": f"Soil Analysis Error: {str(exc)}"}), 500
+
 
 @app.route("/predict_plant", methods=["POST"])
 @require_api_key
 def predict_plant():
     try:
-        file = request.files.get('file')
-        if not file: return jsonify({"error": "No file uploaded"}), 400
-        
-        # Validate file is an image
+        _ensure_static_data()
+        plant_model = _load_model("plant")
+    except Exception:
+        return _model_not_ready_response("plant", "Disease detection")
+
+    try:
+        file = request.files.get("file")
+        if not file:
+            return jsonify({"error": "No file uploaded"}), 400
+
         try:
             img = Image.open(io.BytesIO(file.read())).convert("RGB").resize((224, 224))
         except Exception:
             return jsonify({"error": "Invalid image file"}), 400
-            
+
         arr = np.expand_dims(np.array(img, dtype=np.float32), 0)
-        preds = models['plant'](arr, training=False).numpy()[0]
-        idx = np.argmax(preds)
-        
-        disease_name = db['plant_labels'][idx]
+        preds = plant_model(arr, training=False).numpy()[0]
+        idx = int(np.argmax(preds))
+
+        if idx >= len(db["plant_labels"]):
+            raise ValueError("Plant labels are out of sync with the loaded model.")
+
+        disease_name = db["plant_labels"][idx]
         treatment = TREATMENT_DB.get(disease_name, "Consult an agricultural expert for specific treatment.")
-        
-        return jsonify({
-            "prediction": disease_name.replace("___", " ").replace("_", " "),
-            "confidence": f"{preds[idx]:.1%}",
-            "treatment": treatment
-        })
-    except Exception as e:
-        return jsonify({"error": f"Disease Detection Error: {str(e)}"}), 500
+
+        return jsonify(
+            {
+                "prediction": disease_name.replace("___", " ").replace("_", " "),
+                "confidence": f"{preds[idx]:.1%}",
+                "treatment": treatment,
+            }
+        )
+    except Exception as exc:
+        return jsonify({"error": f"Disease Detection Error: {str(exc)}"}), 500
+
 
 @app.route("/schemes", methods=["GET"])
 @require_api_key
 def get_schemes():
     return jsonify(get_all_schemes())
 
+
 @app.route("/farm_logs", methods=["GET"])
 @require_api_key
 def get_farm_logs():
-    if not os.path.exists(FARM_LOG_PATH): return jsonify([])
-    with open(FARM_LOG_PATH, 'r') as f:
-        return jsonify(json.load(f))
+    if not os.path.exists(FARM_LOG_PATH):
+        return jsonify([])
+    with open(FARM_LOG_PATH, "r", encoding="utf-8") as file_obj:
+        return jsonify(json.load(file_obj))
+
 
 @app.route("/add_farm_log", methods=["POST"])
 @require_api_key
 def add_farm_log():
     data = request.get_json()
-    if not data: return jsonify({"error": "No data"}), 400
+    if not data:
+        return jsonify({"error": "No data"}), 400
     logs = []
     if os.path.exists(FARM_LOG_PATH):
-        with open(FARM_LOG_PATH, 'r') as f:
-            logs = json.load(f)
-    logs.append({
-        "date": data.get("date", ""),
-        "activity": data.get("activity", ""),
-        "expense": data.get("expense", 0),
-        "crop_stage": data.get("crop_stage", ""),
-        "notes": data.get("notes", "")
-    })
-    with open(FARM_LOG_PATH, 'w') as f:
-        json.dump(logs, f)
+        with open(FARM_LOG_PATH, "r", encoding="utf-8") as file_obj:
+            logs = json.load(file_obj)
+    logs.append(
+        {
+            "date": data.get("date", ""),
+            "activity": data.get("activity", ""),
+            "expense": data.get("expense", 0),
+            "crop_stage": data.get("crop_stage", ""),
+            "notes": data.get("notes", ""),
+        }
+    )
+    with open(FARM_LOG_PATH, "w", encoding="utf-8") as file_obj:
+        json.dump(logs, file_obj)
     return jsonify({"success": True})
+
 
 @app.route("/posts", methods=["GET"])
 @require_api_key
 def get_posts():
-    if not os.path.exists(COMMUNITY_PATH): return jsonify([])
-    with open(COMMUNITY_PATH, 'r') as f:
-        return jsonify(json.load(f))
+    if not os.path.exists(COMMUNITY_PATH):
+        return jsonify([])
+    with open(COMMUNITY_PATH, "r", encoding="utf-8") as file_obj:
+        return jsonify(json.load(file_obj))
+
 
 @app.route("/add_post", methods=["POST"])
 @require_api_key
 def add_post():
     data = request.get_json()
-    if not data: return jsonify({"error": "No data"}), 400
+    if not data:
+        return jsonify({"error": "No data"}), 400
     posts = []
     if os.path.exists(COMMUNITY_PATH):
-        with open(COMMUNITY_PATH, 'r') as f:
-            posts = json.load(f)
-    posts.append({
-        "id": len(posts) + 1,
-        "author": data.get("author", "Farmer"),
-        "title": data.get("title", ""),
-        "content": data.get("content", ""),
-        "replies": []
-    })
-    with open(COMMUNITY_PATH, 'w') as f:
-        json.dump(posts, f)
+        with open(COMMUNITY_PATH, "r", encoding="utf-8") as file_obj:
+            posts = json.load(file_obj)
+    posts.append(
+        {
+            "id": len(posts) + 1,
+            "author": data.get("author", "Farmer"),
+            "title": data.get("title", ""),
+            "content": data.get("content", ""),
+            "replies": [],
+        }
+    )
+    with open(COMMUNITY_PATH, "w", encoding="utf-8") as file_obj:
+        json.dump(posts, file_obj)
     return jsonify({"success": True})
+
 
 @app.route("/add_reply", methods=["POST"])
 @require_api_key
 def add_reply():
     data = request.get_json()
     post_id = data.get("post_id")
-    if not post_id: return jsonify({"error": "Missing post_id"}), 400
+    if not post_id:
+        return jsonify({"error": "Missing post_id"}), 400
     posts = []
     if os.path.exists(COMMUNITY_PATH):
-        with open(COMMUNITY_PATH, 'r') as f:
-            posts = json.load(f)
+        with open(COMMUNITY_PATH, "r", encoding="utf-8") as file_obj:
+            posts = json.load(file_obj)
     for post in posts:
         if post["id"] == post_id:
-            post["replies"].append({
-                "author": data.get("author", "Farmer"),
-                "content": data.get("content", "")
-            })
+            post["replies"].append(
+                {
+                    "author": data.get("author", "Farmer"),
+                    "content": data.get("content", ""),
+                }
+            )
             break
-    with open(COMMUNITY_PATH, 'w') as f:
-        json.dump(posts, f)
+    with open(COMMUNITY_PATH, "w", encoding="utf-8") as file_obj:
+        json.dump(posts, file_obj)
     return jsonify({"success": True})
 
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)

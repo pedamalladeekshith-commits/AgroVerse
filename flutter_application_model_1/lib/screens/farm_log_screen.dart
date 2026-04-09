@@ -74,7 +74,7 @@ class _FarmLogScreenState extends State<FarmLogScreen> {
             const SizedBox(height: 20),
             TextField(controller: _activityController, decoration: const InputDecoration(labelText: "Activity (e.g., Sowing, Squirting)", border: OutlineInputBorder())),
             const SizedBox(height: 10),
-            TextField(controller: _expenseController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Expense (₹)", border: OutlineInputBorder())),
+            TextField(controller: _expenseController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Expense (Rs)", border: OutlineInputBorder())),
             const SizedBox(height: 10),
             TextField(controller: _stageController, decoration: const InputDecoration(labelText: "Crop Stage", border: OutlineInputBorder())),
             const SizedBox(height: 10),
@@ -117,7 +117,7 @@ class _FarmLogScreenState extends State<FarmLogScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(log['date'], style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-                                Text("₹${log['expense']}", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                                Text("Rs ${log['expense']}", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
                               ],
                             ),
                             const Divider(),

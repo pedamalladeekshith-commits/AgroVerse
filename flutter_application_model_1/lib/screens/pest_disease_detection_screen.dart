@@ -188,7 +188,7 @@ class _PestDiseaseDetectionScreenState extends State<PestDiseaseDetectionScreen>
                       ),
                       const SizedBox(height: 10),
                       const Text(
-                        "• Apply recommended organic fungicide.\n• Remove infected leaves immediately to prevent spread.\n• Ensure proper spacing between plants.",
+                        "- Apply recommended organic fungicide.\n- Remove infected leaves immediately to prevent spread.\n- Ensure proper spacing between plants.",
                         style: TextStyle(fontSize: 16, height: 1.5),
                       ),
                       const SizedBox(height: 20),

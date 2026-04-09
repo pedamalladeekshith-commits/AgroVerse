@@ -13,7 +13,6 @@ class AuthService {
       await _auth.verifyPhoneNumber(
         phoneNumber: phoneNumber,
         verificationCompleted: (PhoneAuthCredential credential) async {
-          // On Android, some devices may automatically verify the code
           await _auth.signInWithCredential(credential);
         },
         verificationFailed: onVerificationFailed,

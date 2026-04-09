@@ -9,7 +9,7 @@ from datetime import datetime
 from services.price_forecast_service import predict_price_trend
 
 # API Configuration
-MARKET_API_KEY = "579b464db66ec23bdd000001337b203720474dc54ffe3ce0c69fe62a"
+MARKET_API_KEY = os.getenv("MARKET_API_KEY", "579b464db66ec23bdd000001337b203720474dc54ffe3ce0c69fe62a")
 RESOURCE_ID = "9ef84268-d588-465a-a308-a864a43d0070"
 BASE_URL = f"https://api.data.gov.in/resource/{RESOURCE_ID}"
 

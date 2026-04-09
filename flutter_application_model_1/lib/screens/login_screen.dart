@@ -118,7 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       Text(_isOtpSent ? "Verify OTP" : "Join our Community"),
                       const SizedBox(height: 32),
-                      
+
                       if (!_isOtpSent) ...[
                         TextField(
                           controller: _nameController,
@@ -141,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ],
-                      
+
                       if (_isOtpSent) ...[
                         const Text(
                           "Enter the 6-digit code sent to your phone",
@@ -168,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         height: 50,
                         child: ElevatedButton(
                           onPressed: _isLoading 
-                            ? null 
+                            ? null
                             : (_isOtpSent ? _verifyOtp : _sendOtp),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green[700],
@@ -177,8 +177,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: _isLoading 
                             ? const CircularProgressIndicator(color: Colors.white)
                             : Text(
-                                _isOtpSent ? "Verify & Proceed" : "Continue", 
-                                style: const TextStyle(fontSize: 18, color: Colors.white)
+                                _isOtpSent ? "Verify & Proceed" : "Continue",
+                                style: const TextStyle(fontSize: 18, color: Colors.white),
                               ),
                         ),
                       ),

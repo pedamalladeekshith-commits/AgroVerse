@@ -38,19 +38,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadProfile() async {
     final prefs = await SharedPreferences.getInstance();
     
-    // Try to get phone number from various sources
     final firebaseUser = FirebaseAuth.instance.currentUser;
     String? phone = firebaseUser?.phoneNumber;
     
     if (phone == null || phone.isEmpty) {
-      phone = prefs.getString('phone_number') ?? 
-              prefs.getString('user_phone') ?? 
-              prefs.getString('phone') ?? "";
-    }
-
-    // For Demo: If still empty, use a placeholder if one was saved during login
-    if (phone.isEmpty) {
-      phone = "9007622694"; // Default for demo if everything fails
+      phone = prefs.getString('phone_number') ??
+          prefs.getString('user_phone') ??
+          prefs.getString('phone') ??
+          "";
     }
 
     setState(() {
@@ -174,7 +169,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 16),
               Text(_name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              Text(_phone.startsWith('+91') ? _phone : "+91 $_phone", style: const TextStyle(color: Colors.grey, fontSize: 16)),
+              Text(
+                _phone.isEmpty ? "Phone not set" : (_phone.startsWith('+91') ? _phone : "+91 $_phone"),
+                style: const TextStyle(color: Colors.grey, fontSize: 16),
+              ),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),

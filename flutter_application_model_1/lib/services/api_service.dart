@@ -1,12 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../core/app_config.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://agroverse-1fed.onrender.com';
-  static const String _apiKey = 'AGROVERSE_SECRET_TOKEN_2026';
-  static const Duration _timeout = Duration(seconds: 10);
+  static String get baseUrl => AppConfig.resolvedApiBaseUrl;
+  static String get _apiKey => AppConfig.apiKey;
+  static const Duration _timeout = Duration(seconds: 30);
+  
+  // For debugging request counts
+  static int _requestCount = 0;
 
   static Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -15,32 +20,60 @@ class ApiService {
 
   // Helper for standardized GET requests
   static Future<dynamic> _get(String endpoint) async {
+    _requestCount++;
+    final requestId = _requestCount;
+    if (kDebugMode) {
+      print("[ApiService] #$requestId Calling (GET): $baseUrl$endpoint");
+    }
     try {
       final response = await http.get(
         Uri.parse('$baseUrl$endpoint'),
         headers: _headers,
       ).timeout(_timeout);
+      
+      if (kDebugMode) {
+        print("[ApiService] #$requestId Response: ${response.statusCode}");
+      }
       return _handleResponse(response);
-    } on SocketException {
+    } on SocketException catch (e) {
+      if (kDebugMode) print("[ApiService] #$requestId SocketException: $e");
       throw Exception('No Internet connection. Please check your data.');
     } on TimeoutException {
+      if (kDebugMode) print("[ApiService] #$requestId TimeoutException for GET $endpoint");
       throw Exception('Server took too long to respond.');
+    } catch (e) {
+      if (kDebugMode) print("[ApiService] #$requestId Unknown error: $e");
+      rethrow;
     }
   }
 
   // Helper for standardized POST requests
   static Future<dynamic> _post(String endpoint, Map<String, dynamic> body) async {
+    _requestCount++;
+    final requestId = _requestCount;
+    if (kDebugMode) {
+      print("[ApiService] #$requestId Calling (POST): $baseUrl$endpoint");
+    }
     try {
       final response = await http.post(
         Uri.parse('$baseUrl$endpoint'),
         headers: _headers,
         body: jsonEncode(body),
       ).timeout(_timeout);
+      
+      if (kDebugMode) {
+        print("[ApiService] #$requestId Response: ${response.statusCode}");
+      }
       return _handleResponse(response);
-    } on SocketException {
-      throw Exception('Connection error. Is the backend running?');
+    } on SocketException catch (e) {
+      if (kDebugMode) print("[ApiService] #$requestId SocketException: $e");
+      throw Exception('Connection error. Check your API base URL or backend status.');
     } on TimeoutException {
+      if (kDebugMode) print("[ApiService] #$requestId TimeoutException for POST $endpoint");
       throw Exception('Request timed out.');
+    } catch (e) {
+      if (kDebugMode) print("[ApiService] #$requestId Unknown error: $e");
+      rethrow;
     }
   }
 
@@ -51,11 +84,9 @@ class ApiService {
       if (contentType.contains('application/json')) {
         return jsonDecode(response.body);
       } else {
-        // Successful status but not JSON? Probably a server config issue.
         return response.body;
       }
     } else {
-      // Error status code
       if (contentType.contains('application/json')) {
         try {
           final errorData = jsonDecode(response.body);
@@ -65,7 +96,6 @@ class ApiService {
           throw Exception('Server returned error ${response.statusCode}');
         }
       } else {
-        // HTML or plain text error (like 500 Internal Server Error page)
         throw Exception('Server Error (${response.statusCode}): The request could not be processed.');
       }
     }
@@ -85,28 +115,40 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> predictPlantDisease(File imageFile) async {
+    _requestCount++;
+    final requestId = _requestCount;
+    if (kDebugMode) print("[ApiService] #$requestId Calling (Multipart): $baseUrl/predict_plant");
+    
     var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/predict_plant'));
     request.headers['x-api-key'] = _apiKey;
     request.files.add(await http.MultipartFile.fromPath('file', imageFile.path));
 
-    final streamedResponse = await request.send().timeout(const Duration(seconds: 20));
+    final streamedResponse = await request.send().timeout(const Duration(seconds: 45));
     final response = await http.Response.fromStream(streamedResponse);
     return _handleResponse(response);
   }
 
   static Future<Map<String, dynamic>> predictSoil(File imageFile) async {
+    _requestCount++;
+    final requestId = _requestCount;
+    if (kDebugMode) print("[ApiService] #$requestId Calling (Multipart): $baseUrl/predict_soil");
+
     var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/predict_soil'));
     request.headers['x-api-key'] = _apiKey;
     request.files.add(await http.MultipartFile.fromPath('file', imageFile.path));
 
-    final streamedResponse = await request.send().timeout(const Duration(seconds: 20));
+    final streamedResponse = await request.send().timeout(const Duration(seconds: 45));
     final response = await http.Response.fromStream(streamedResponse);
     return _handleResponse(response);
   }
 
   static Future<Map<String, dynamic>> getMarketPrices(String commodity, {String? state, String? district, double? farmSize}) async {
     return await _post('/market_prices', {
-      'commodity': commodity, 'crop': commodity, 'state': state, 'district': district, 'farm_size': farmSize,
+      'commodity': commodity,
+      'crop': commodity,
+      'state': state,
+      'district': district,
+      'farm_size': farmSize,
     });
   }
 
