@@ -9,6 +9,7 @@ class ApiService {
   static String get baseUrl => AppConfig.resolvedApiBaseUrl;
   static String get _apiKey => AppConfig.apiKey;
   static const Duration _timeout = Duration(seconds: 30);
+  static const Duration _multipartTimeout = Duration(seconds: 90);
   
   // For debugging request counts
   static int _requestCount = 0;
@@ -118,14 +119,25 @@ class ApiService {
     _requestCount++;
     final requestId = _requestCount;
     if (kDebugMode) print("[ApiService] #$requestId Calling (Multipart): $baseUrl/predict_plant");
-    
-    var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/predict_plant'));
-    request.headers['x-api-key'] = _apiKey;
-    request.files.add(await http.MultipartFile.fromPath('file', imageFile.path));
 
-    final streamedResponse = await request.send().timeout(const Duration(seconds: 45));
-    final response = await http.Response.fromStream(streamedResponse);
-    return _handleResponse(response);
+    try {
+      var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/predict_plant'));
+      request.headers['x-api-key'] = _apiKey;
+      request.files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+
+      final streamedResponse = await request.send().timeout(_multipartTimeout);
+      final response = await http.Response.fromStream(streamedResponse);
+      return _handleResponse(response);
+    } on SocketException catch (e) {
+      if (kDebugMode) print("[ApiService] #$requestId SocketException (Multipart): $e");
+      throw Exception('Connection error while uploading image. Please check your internet and backend status.');
+    } on TimeoutException {
+      if (kDebugMode) print("[ApiService] #$requestId TimeoutException for multipart /predict_plant");
+      throw Exception('Disease detection took too long. The server may be waking up or under heavy load. Please try again.');
+    } catch (e) {
+      if (kDebugMode) print("[ApiService] #$requestId Unknown multipart error: $e");
+      rethrow;
+    }
   }
 
   static Future<Map<String, dynamic>> predictSoil(File imageFile) async {
@@ -133,13 +145,24 @@ class ApiService {
     final requestId = _requestCount;
     if (kDebugMode) print("[ApiService] #$requestId Calling (Multipart): $baseUrl/predict_soil");
 
-    var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/predict_soil'));
-    request.headers['x-api-key'] = _apiKey;
-    request.files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+    try {
+      var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/predict_soil'));
+      request.headers['x-api-key'] = _apiKey;
+      request.files.add(await http.MultipartFile.fromPath('file', imageFile.path));
 
-    final streamedResponse = await request.send().timeout(const Duration(seconds: 45));
-    final response = await http.Response.fromStream(streamedResponse);
-    return _handleResponse(response);
+      final streamedResponse = await request.send().timeout(_multipartTimeout);
+      final response = await http.Response.fromStream(streamedResponse);
+      return _handleResponse(response);
+    } on SocketException catch (e) {
+      if (kDebugMode) print("[ApiService] #$requestId SocketException (Multipart): $e");
+      throw Exception('Connection error while uploading image. Please check your internet and backend status.');
+    } on TimeoutException {
+      if (kDebugMode) print("[ApiService] #$requestId TimeoutException for multipart /predict_soil");
+      throw Exception('Soil analysis took too long. The server may be waking up or loading the AI model. Please try again.');
+    } catch (e) {
+      if (kDebugMode) print("[ApiService] #$requestId Unknown multipart error: $e");
+      rethrow;
+    }
   }
 
   static Future<Map<String, dynamic>> getMarketPrices(String commodity, {String? state, String? district, double? farmSize}) async {
