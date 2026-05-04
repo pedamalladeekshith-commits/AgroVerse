@@ -7,9 +7,11 @@ from werkzeug.exceptions import HTTPException
 import io
 import joblib
 import pandas as pd
+import gc
 import json
 import logging
 import os
+import threading
 import traceback
 
 # Services
@@ -105,6 +107,7 @@ TREATMENT_DB = {
 models = {}
 db = {}
 resource_errors = {}
+image_model_lock = threading.Lock()
 
 
 def _load_json_file(path):
@@ -149,6 +152,19 @@ def _ensure_static_data():
         db["crops"] = _load_json_file(CROP_DETAILS_PATH)
 
 
+def _release_image_models_except(active_model_name):
+    released = []
+    for loaded_model_name in ("soil", "plant"):
+        if loaded_model_name != active_model_name and loaded_model_name in models:
+            released.append(loaded_model_name)
+            del models[loaded_model_name]
+
+    if released:
+        logger.info("Released TensorFlow image model(s) to save Render memory: %s", ", ".join(released))
+        tf.keras.backend.clear_session()
+        gc.collect()
+
+
 def _load_model(model_name):
     if model_name in models:
         return models[model_name]
@@ -156,10 +172,12 @@ def _load_model(model_name):
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
     try:
         if model_name == "soil":
+            _release_image_models_except("soil")
             _validate_file(SOIL_MODEL_PATH, "Soil model")
             logger.info("Loading soil model from %s", SOIL_MODEL_PATH)
             models["soil"] = tf.keras.models.load_model(SOIL_MODEL_PATH, compile=False)
         elif model_name == "plant":
+            _release_image_models_except("plant")
             _validate_file(PLANT_MODEL_PATH, "Plant disease model")
             logger.info("Loading plant disease model from %s", PLANT_MODEL_PATH)
             models["plant"] = tf.keras.models.load_model(PLANT_MODEL_PATH, compile=False)
@@ -476,13 +494,14 @@ def predict_soil():
 
     try:
         _ensure_static_data()
-        soil_model = _load_model("soil")
+        with image_model_lock:
+            soil_model = _load_model("soil")
+            arr = _prepare_image_array(img, _model_image_size(soil_model, (128, 128)))
+            preds = soil_model.predict(arr, verbose=0)[0]
     except Exception:
         return _model_not_ready_response("soil", "Soil analysis")
 
     try:
-        arr = _prepare_image_array(img, _model_image_size(soil_model, (128, 128)))
-        preds = soil_model.predict(arr, verbose=0)[0]
         scores = _prediction_scores(preds)
         idx = int(np.argmax(scores))
 
@@ -515,13 +534,14 @@ def predict_plant():
 
     try:
         _ensure_static_data()
-        plant_model = _load_model("plant")
+        with image_model_lock:
+            plant_model = _load_model("plant")
+            arr = _prepare_image_array(img, _model_image_size(plant_model, (224, 224)))
+            preds = plant_model.predict(arr, verbose=0)[0]
     except Exception:
         return _model_not_ready_response("plant", "Disease detection")
 
     try:
-        arr = _prepare_image_array(img, _model_image_size(plant_model, (224, 224)))
-        preds = plant_model.predict(arr, verbose=0)[0]
         scores = _prediction_scores(preds)
         idx = int(np.argmax(scores))
 
