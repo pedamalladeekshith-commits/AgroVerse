@@ -493,7 +493,8 @@ def predict_soil():
         return _json_success(
             soil_type=db["soil_labels"][idx],
             prediction=db["soil_labels"][idx],
-            confidence=round(float(scores[idx]), 4),
+            confidence=f"{float(scores[idx]):.1%}",
+            confidence_score=round(float(scores[idx]), 4),
         )
     except ValueError as exc:
         logger.warning("Bad soil prediction request: %s", exc)
@@ -540,7 +541,8 @@ def predict_plant():
         return _json_success(
             prediction=display_name,
             disease=disease_name,
-            confidence=round(float(scores[idx]), 4),
+            confidence=f"{float(scores[idx]):.1%}",
+            confidence_score=round(float(scores[idx]), 4),
             treatment=treatment,
         )
     except ValueError as exc:
