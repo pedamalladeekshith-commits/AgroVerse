@@ -142,6 +142,51 @@ def _json_error(message, http_status=500, **payload):
     return jsonify({"status": "error", "message": message, **payload}), http_status
 
 
+def _get_crop_details(crop_name):
+    crop_key = str(crop_name).strip().lower()
+    crop_display = crop_key.capitalize()
+    return (
+        db["crops"].get(crop_display)
+        or db["crops"].get(crop_key)
+        or db["crops"].get(crop_key.title())
+        or {}
+    )
+
+
+def _build_crop_options(crop_model, features_df, limit=5):
+    if not hasattr(crop_model, "predict_proba") or not hasattr(crop_model, "classes_"):
+        crop_name = str(crop_model.predict(features_df)[0]).strip().lower()
+        return [
+            {
+                "crop": crop_name.capitalize(),
+                "confidence": "N/A",
+                "score": None,
+                "details_available": bool(_get_crop_details(crop_name)),
+            }
+        ]
+
+    probabilities = crop_model.predict_proba(features_df)[0]
+    ranked_indexes = np.argsort(probabilities)[::-1][:limit]
+    options = []
+    for index in ranked_indexes:
+        crop_key = str(crop_model.classes_[index]).strip().lower()
+        confidence = float(probabilities[index])
+        details = _get_crop_details(crop_key)
+        options.append(
+            {
+                "crop": crop_key.capitalize(),
+                "confidence": f"{confidence:.0%}",
+                "score": round(confidence, 4),
+                "details_available": bool(details),
+                "duration": details.get("duration"),
+                "soil_ph": details.get("soil_ph"),
+                "season": details.get("suitable_season", []),
+                "water_need": details.get("water_need", []),
+            }
+        )
+    return options
+
+
 def _validate_file(path, resource_name):
     if not os.path.exists(path):
         message = f"{resource_name} file not found: {path}"
@@ -457,17 +502,20 @@ def recommend_crop():
         prediction = crop_model.predict(features_df)[0]
         rec_crop_key = str(prediction).strip().lower()
         rec_crop_name = rec_crop_key.capitalize()
+        suitable_crops = _build_crop_options(crop_model, features_df)
+        if suitable_crops and suitable_crops[0]["crop"]:
+            rec_crop_key = suitable_crops[0]["crop"].strip().lower()
+            rec_crop_name = rec_crop_key.capitalize()
+        alternative_crops = [
+            crop for crop in suitable_crops
+            if crop["crop"].lower() != rec_crop_key
+        ]
 
         target_crop = rec_crop_key
         target_crop_display = rec_crop_name
         state = weather.get("region", "Karnataka")
 
-        crop_info = (
-            db["crops"].get(rec_crop_name)
-            or db["crops"].get(rec_crop_key)
-            or db["crops"].get(rec_crop_key.title())
-            or {}
-        )
+        crop_info = _get_crop_details(rec_crop_key)
         yield_per_hectare = crop_info.get("yield_per_hectare", 2.5)
         acre_to_hectare = land_size / 2.47
         total_yield_tons = round(yield_per_hectare * acre_to_hectare, 2)
@@ -485,7 +533,7 @@ def recommend_crop():
 
         explanation = " ".join(reasoning) if reasoning else f"AI recommends {rec_crop_name} based on nutrient profile."
         if hasattr(crop_model, "predict_proba"):
-            confidence = f"{float(np.max(crop_model.predict_proba(features_df)[0])):.0%}"
+            confidence = suitable_crops[0]["confidence"] if suitable_crops else "N/A"
         else:
             confidence = "N/A"
 
@@ -495,6 +543,8 @@ def recommend_crop():
             "target_crop_details": target_crop_display,
             "model_input": feat_dict,
             "confidence": confidence,
+            "suitable_crops": suitable_crops,
+            "alternative_crops": alternative_crops,
             "weather_summary": weather,
             "market_intelligence": market_intel,
             "pest_alerts": detect_pest_risk(weather["avg_temp"], weather["avg_humidity"]),

@@ -65,12 +65,14 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied)
+      if (permission == LocationPermission.denied) {
         return Future.error('Location permissions are denied');
+      }
     }
 
-    if (permission == LocationPermission.deniedForever)
+    if (permission == LocationPermission.deniedForever) {
       return Future.error('Location permissions are permanently denied.');
+    }
 
     return await Geolocator.getCurrentPosition();
   }
@@ -351,6 +353,9 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
     final weather = rec['weather_summary'] ?? {};
     final pestAlerts = rec['pest_alerts'] ?? [];
     final cropDetails = rec['crop_details'] ?? {};
+    final alternativeCrops = rec['alternative_crops'] is List
+        ? rec['alternative_crops'] as List
+        : [];
 
     return Column(
       children: [
@@ -424,6 +429,62 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
           ),
         ),
         const SizedBox(height: 10),
+
+        if (alternativeCrops.isNotEmpty)
+          Card(
+            elevation: 3,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.grass, color: Colors.green),
+                      SizedBox(width: 8),
+                      Text(
+                        "Other Suitable Crops",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(),
+                  for (final crop in alternativeCrops.take(4))
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.eco, color: Colors.green),
+                      title: Text(
+                        "${crop['crop'] ?? 'Crop'}",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        [
+                          if (crop['soil_ph'] != null)
+                            "pH ${crop['soil_ph']}",
+                          if (crop['duration'] != null)
+                            "${crop['duration']}",
+                        ].join(" | "),
+                      ),
+                      trailing: Text(
+                        "${crop['confidence'] ?? ''}",
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        if (alternativeCrops.isNotEmpty) const SizedBox(height: 10),
 
         // AI INSIGHT SECTION
         Card(
