@@ -6,20 +6,14 @@ import pickle
 import os
 
 # Paths according to the new structure
-DATASET_PATH = 'datasets/Crop_recommendation.csv'
-MODEL_SAVE_PATH = 'models/crop_model.pkl'
+DATASET_PATH = 'share_bundle/datasets/crop_recommendation/Crop_recommendation.csv'
+MODEL_SAVE_PATH = 'backend/models/crop_model.pkl'
 
 def train_model():
     print("Loading dataset...")
-    # Check if we need to copy the dataset from the old location
     if not os.path.exists(DATASET_PATH):
-        old_path = 'datasets/crop_recommendation/Crop_recommendation.csv'
-        if os.path.exists(old_path):
-            import shutil
-            shutil.copy(old_path, DATASET_PATH)
-        else:
-            print(f"Error: Dataset not found at {DATASET_PATH} or {old_path}")
-            return
+        print(f"Error: Dataset not found at {DATASET_PATH}")
+        return
 
     data = pd.read_csv(DATASET_PATH)
     
