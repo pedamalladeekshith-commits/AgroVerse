@@ -8,10 +8,12 @@ class AuthService {
     required String phoneNumber,
     required Function(String verId) onCodeSent,
     required Function(FirebaseAuthException e) onVerificationFailed,
+    required Function(String verificationId) onAutoRetrievalTimeout,
   }) async {
     try {
       await _auth.verifyPhoneNumber(
         phoneNumber: phoneNumber,
+        timeout: const Duration(seconds: 60),
         verificationCompleted: (PhoneAuthCredential credential) async {
           await _auth.signInWithCredential(credential);
         },
@@ -19,10 +21,18 @@ class AuthService {
         codeSent: (String verificationId, int? resendToken) {
           onCodeSent(verificationId);
         },
-        codeAutoRetrievalTimeout: (String verificationId) {},
+        codeAutoRetrievalTimeout: onAutoRetrievalTimeout,
       );
+    } on FirebaseAuthException catch (e) {
+      onVerificationFailed(e);
     } catch (e) {
       debugPrint("Error sending OTP: $e");
+      onVerificationFailed(
+        FirebaseAuthException(
+          code: "otp-send-failed",
+          message: e.toString(),
+        ),
+      );
     }
   }
 

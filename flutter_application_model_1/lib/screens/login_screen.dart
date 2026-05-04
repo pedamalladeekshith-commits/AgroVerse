@@ -15,7 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
   final AuthService _authService = AuthService();
-  
+
   String _verificationId = "";
   bool _isOtpSent = false;
   bool _isLoading = false;
@@ -39,6 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
     await _authService.sendOTP(
       phoneNumber: "+91${_phoneController.text}",
       onCodeSent: (verId) {
+        if (!mounted) return;
         setState(() {
           _verificationId = verId;
           _isOtpSent = true;
@@ -49,9 +50,20 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       },
       onVerificationFailed: (e) {
+        if (!mounted) return;
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Verification Failed: ${e.message}")),
+          SnackBar(content: Text("Verification Failed: ${e.message ?? e.code}")),
+        );
+      },
+      onAutoRetrievalTimeout: (verId) {
+        if (!mounted || _isOtpSent) return;
+        setState(() {
+          _verificationId = verId;
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("OTP request timed out. Please try again.")),
         );
       },
     );
@@ -72,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await prefs.setBool('is_logged_in', true);
       await prefs.setString('user_name', _nameController.text.trim());
       await prefs.setString('phone_number', _phoneController.text);
-      
+
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -80,6 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } else {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Invalid OTP. Please try again.")),
@@ -160,29 +173,27 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ],
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       SizedBox(
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _isLoading 
-                            ? null
-                            : (_isOtpSent ? _verifyOtp : _sendOtp),
+                          onPressed: _isLoading ? null : (_isOtpSent ? _verifyOtp : _sendOtp),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green[700],
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: _isLoading 
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : Text(
-                                _isOtpSent ? "Verify & Proceed" : "Continue",
-                                style: const TextStyle(fontSize: 18, color: Colors.white),
-                              ),
+                          child: _isLoading
+                              ? const CircularProgressIndicator(color: Colors.white)
+                              : Text(
+                                  _isOtpSent ? "Verify & Proceed" : "Continue",
+                                  style: const TextStyle(fontSize: 18, color: Colors.white),
+                                ),
                         ),
                       ),
-                      
+
                       if (_isOtpSent)
                         TextButton(
                           onPressed: () => setState(() => _isOtpSent = false),

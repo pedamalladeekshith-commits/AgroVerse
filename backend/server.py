@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import tensorflow as tf
 import numpy as np
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 from werkzeug.exceptions import HTTPException
 import io
 import joblib
@@ -226,7 +226,10 @@ def _get_uploaded_image():
     try:
         image = Image.open(io.BytesIO(image_bytes))
         image.verify()
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        image = Image.open(io.BytesIO(image_bytes))
+        image = ImageOps.exif_transpose(image)
+        image.thumbnail((1024, 1024))
+        image = image.convert("RGB")
     except (UnidentifiedImageError, OSError, ValueError) as exc:
         raise ValueError("Invalid or corrupt image file.") from exc
 
@@ -367,7 +370,8 @@ def market_prices():
 
     records, error = get_market_prices(commodity, state, district)
     if error and not records:
-        return jsonify({"error": error}), 503
+        logger.warning("Market service returned no records for %s/%s/%s: %s", commodity, state, district, error)
+        records = []
 
     best = get_best_market(records)
 
@@ -381,6 +385,7 @@ def market_prices():
 
     return jsonify(
         {
+            "status": "success",
             "commodity": commodity.capitalize(),
             "best_market": best,
             "market_comparison": records,

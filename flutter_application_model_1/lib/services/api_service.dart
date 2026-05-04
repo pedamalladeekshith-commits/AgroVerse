@@ -8,8 +8,8 @@ import '../core/app_config.dart';
 class ApiService {
   static String get baseUrl => AppConfig.resolvedApiBaseUrl;
   static String get _apiKey => AppConfig.apiKey;
-  static const Duration _timeout = Duration(seconds: 30);
-  static const Duration _multipartTimeout = Duration(seconds: 90);
+  static const Duration _timeout = Duration(seconds: 120);
+  static const Duration _multipartTimeout = Duration(seconds: 180);
   
   // For debugging request counts
   static int _requestCount = 0;

@@ -37,10 +37,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadProfile() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     final firebaseUser = FirebaseAuth.instance.currentUser;
     String? phone = firebaseUser?.phoneNumber;
-    
+
     if (phone == null || phone.isEmpty) {
       phone = prefs.getString('phone_number') ??
           prefs.getString('user_phone') ??

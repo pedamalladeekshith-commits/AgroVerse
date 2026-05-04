@@ -31,6 +31,23 @@ def _fallback_seasonal_weather(city, reason):
         "fallback_reason": str(reason),
     }, None
 
+
+def _fallback_current_weather(city, reason):
+    profile = FALLBACK_WEATHER.get((city or "").strip().lower())
+    if profile is None:
+        profile = {"avg_temp": 27.0, "avg_humidity": 65.0, "total_rainfall": 0.0, "region": "India"}
+
+    return {
+        "temperature": profile["avg_temp"],
+        "humidity": profile["avg_humidity"],
+        "rainfall": 0.0,
+        "city": city or "Unknown",
+        "region": profile["region"],
+        "condition": "Estimated weather",
+        "is_fallback": True,
+        "fallback_reason": str(reason),
+    }, None
+
 def get_seasonal_weather(city):
     """
     Fetches 7-day forecast and computes averages for seasonal prediction.
@@ -75,6 +92,7 @@ def get_weather_by_coords(lat, lon):
     url = f"http://api.weatherapi.com/v1/current.json?key={API_KEY}&q={lat},{lon}"
     try:
         response = requests.get(url, timeout=10)
+        response.raise_for_status()
         data = response.json()
         return {
             "temperature": data["current"]["temp_c"],
@@ -85,13 +103,14 @@ def get_weather_by_coords(lat, lon):
             "condition": data["current"]["condition"]["text"]
         }, None
     except Exception as e:
-        return None, str(e)
+        return _fallback_current_weather("Current location", e)
 
 # Keep original function for backward compatibility
 def get_weather_data(city):
     url = f"http://api.weatherapi.com/v1/current.json?key={API_KEY}&q={city}"
     try:
         response = requests.get(url, timeout=10)
+        response.raise_for_status()
         data = response.json()
         return {
             "temperature": data["current"]["temp_c"],
@@ -102,4 +121,4 @@ def get_weather_data(city):
             "condition": data["current"]["condition"]["text"]
         }, None
     except Exception as e:
-        return None, str(e)
+        return _fallback_current_weather(city, e)
