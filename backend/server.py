@@ -14,6 +14,20 @@ import os
 import threading
 import traceback
 
+# --- TensorFlow Memory Optimization ---
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
+os.environ["TF_NUM_INTEROP_THREADS"] = "1"
+
+try:
+    import tensorflow as tf
+    tf.config.threading.set_intra_op_parallelism_threads(1)
+    tf.config.threading.set_inter_op_parallelism_threads(1)
+    tf.config.set_visible_devices([], 'GPU') # Force CPU to save driver overhead
+except Exception:
+    pass
+
 # Services
 from services.weather_service import get_seasonal_weather, get_weather_data
 from services.market_service import get_market_prices, get_best_market, get_market_intelligence
@@ -154,15 +168,20 @@ def _ensure_static_data():
 
 def _release_image_models_except(active_model_name):
     released = []
+    # Forcefully clear everything from memory if we are switching
     for loaded_model_name in ("soil", "plant"):
         if loaded_model_name != active_model_name and loaded_model_name in models:
             released.append(loaded_model_name)
             del models[loaded_model_name]
 
     if released:
-        logger.info("Released TensorFlow image model(s) to save Render memory: %s", ", ".join(released))
-        tf.keras.backend.clear_session()
+        logger.info("Released TensorFlow model(s) to save memory: %s", ", ".join(released))
+        try:
+            tf.keras.backend.clear_session()
+        except Exception:
+            pass
         gc.collect()
+        gc.collect() # Double call to ensure nested objects are cleared
 
 
 def _load_model(model_name):
