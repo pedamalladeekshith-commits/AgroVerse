@@ -56,7 +56,7 @@ def require_api_key(f):
         api_key = request.headers.get("x-api-key")
         if api_key and api_key == API_KEY_SECRET:
             return f(*args, **kwargs)
-        return jsonify({"status": "error", "error": "Unauthorized: Invalid API Key", "message": "Unauthorized: Invalid API Key"}), 401
+        return jsonify({"status": "error", "message": "Unauthorized: Invalid API Key"}), 401
 
     return decorated
 
@@ -139,7 +139,7 @@ def _json_success(**payload):
 
 
 def _json_error(message, http_status=500, **payload):
-    return jsonify({"status": "error", "error": message, "message": message, **payload}), http_status
+    return jsonify({"status": "error", "message": message, **payload}), http_status
 
 
 def _validate_file(path, resource_name):
@@ -507,12 +507,6 @@ def recommend_crop():
         return _json_error(f"Advisory Pipeline Error: {str(exc)}", 500)
 
 
-@app.route("/recommend", methods=["POST"])
-@require_api_key
-def recommend():
-    return recommend_crop()
-
-
 @app.route("/predict_soil", methods=["POST"])
 @require_api_key
 def predict_soil():
@@ -603,13 +597,8 @@ def predict_plant():
         return _json_error(f"Disease Detection Error: {str(exc)}", 500)
 
 
-@app.route("/predict", methods=["POST"])
-@require_api_key
-def predict():
-    return predict_plant()
-
-
 @app.route("/schemes", methods=["GET"])
+@require_api_key
 def get_schemes():
     return jsonify(get_all_schemes())
 

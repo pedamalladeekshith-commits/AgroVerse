@@ -15,11 +15,12 @@ class CropRecommendationScreen extends StatefulWidget {
 class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
   final _cityController = TextEditingController();
   
-  double _nValue = 50;
-  double _pValue = 50;
-  double _kValue = 50;
-  double _phValue = 6.5;
-  double _landSize = 1.0;
+  // Default values are now based on typical soil test ranges (medium fertility)
+  double _nValue = 80; // Medium Nitrogen (ppm)
+  double _pValue = 60; // Medium Phosphorus (ppm)
+  double _kValue = 100; // Medium Potassium (ppm)
+  double _phValue = 6.5; // Neutral pH (optimal for most crops)
+  double _landSize = 1.0; // 1 acre default
 
   Map<String, dynamic>? _recommendation;
   bool _loading = false;
@@ -31,24 +32,19 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
     _detectLocation();
   }
 
-  void _enterDemoMode() {
-    setState(() {
-      _nValue = 90;
-      _pValue = 42;
-      _kValue = 43;
-      _phValue = 6.5;
-      _cityController.text = "Mumbai";
-      _landSize = 5.0;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Demo Mode: Optimal values for Rice loaded!")),
-    );
+  @override
+  void dispose() {
+    _cityController.dispose();
+    super.dispose();
   }
 
   Future<void> _detectLocation() async {
     try {
       Position position = await _determinePosition();
-      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
       if (placemarks.isNotEmpty) {
         setState(() {
           _cityController.text = placemarks[0].locality ?? "";
@@ -69,10 +65,12 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) return Future.error('Location permissions are denied');
+      if (permission == LocationPermission.denied)
+        return Future.error('Location permissions are denied');
     }
-    
-    if (permission == LocationPermission.deniedForever) return Future.error('Location permissions are permanently denied.');
+
+    if (permission == LocationPermission.deniedForever)
+      return Future.error('Location permissions are permanently denied.');
 
     return await Geolocator.getCurrentPosition();
   }
@@ -125,27 +123,123 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              "Enter Farm Details",
+              "Crop Advisory - AI Powered",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 8),
+            Text(
+              "Get personalized crop recommendations based on your soil test results",
+              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 16),
+
+            // Soil Test Guidance Card
+            Card(
+              color: Colors.blue[50],
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info, color: Colors.blue[700], size: 20),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            "About Soil Testing",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Values below are soil nutrient levels from your soil test report:\n"
+                      "- N (Nitrogen): mg/kg or ppm\n"
+                      "- P (Phosphorus): mg/kg or ppm\n"
+                      "- K (Potassium): mg/kg or ppm\n"
+                      "- pH: Soil acidity (3-10 scale)\n\n"
+                      "Get a soil test from your agriculture office for accurate results!",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[800],
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             const SizedBox(height: 20),
-            
-            _buildSlider("Nitrogen (N)", _nValue, 0, 140, (val) => setState(() => _nValue = val)),
-            _buildSlider("Phosphorus (P)", _pValue, 0, 140, (val) => setState(() => _pValue = val)),
-            _buildSlider("Potassium (K)", _kValue, 0, 140, (val) => setState(() => _kValue = val)),
-            _buildSlider("Soil pH", _phValue, 0, 14, (val) => setState(() => _phValue = val), divisions: 140),
-            _buildSlider("Land Size (Acres)", _landSize, 0.1, 50, (val) => setState(() => _landSize = val), divisions: 499),
+            const Text(
+              "Enter Your Soil Test Results",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+
+            _buildSlider(
+              "Nitrogen (N)",
+              _nValue,
+              0,
+              140,
+              (val) => setState(() => _nValue = val),
+              helpText: "Typical: 40-100 (Low-High)",
+            ),
+            _buildSlider(
+              "Phosphorus (P)",
+              _pValue,
+              0,
+              140,
+              (val) => setState(() => _pValue = val),
+              helpText: "Typical: 20-80 (Low-High)",
+            ),
+            _buildSlider(
+              "Potassium (K)",
+              _kValue,
+              0,
+              205,
+              (val) => setState(() => _kValue = val),
+              helpText: "Typical: 50-200 (Low-High)",
+            ),
+            _buildSlider(
+              "Soil pH",
+              _phValue,
+              0,
+              14,
+              (val) => setState(() => _phValue = val),
+              divisions: 140,
+              helpText: "6.0-7.5 is optimal for most crops",
+            ),
+            _buildSlider(
+              "Land Size (Acres)",
+              _landSize,
+              0.1,
+              50,
+              (val) => setState(() => _landSize = val),
+              divisions: 499,
+            ),
 
             const SizedBox(height: 10),
             TextField(
               controller: _cityController,
               decoration: InputDecoration(
                 labelText: 'City/Location',
+                hintText: 'e.g., Mumbai, Delhi, Punjab',
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.location_city),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.my_location),
                   onPressed: _detectLocation,
+                  tooltip: "Auto-detect location",
                 ),
               ),
             ),
@@ -156,16 +250,37 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: Colors.green[700],
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: _loading 
-                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Get Recommendation', style: TextStyle(fontSize: 18, color: Colors.white)),
+              child: _loading
+                  ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Get AI Crop Recommendation',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
-            
+
+            const SizedBox(height: 10),
+
             if (_error != null) ...[
               const SizedBox(height: 20),
-              Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 16)),
+              Text(
+                _error!,
+                style: const TextStyle(color: Colors.red, fontSize: 16),
+              ),
             ],
 
             if (_recommendation != null) ...[
@@ -178,18 +293,46 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
               ),
               const SizedBox(height: 10),
               _buildResultCard(),
-            ]
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSlider(String label, double value, double min, double max, ValueChanged<double> onChanged, {int? divisions}) {
+  Widget _buildSlider(
+    String label,
+    double value,
+    double min,
+    double max,
+    ValueChanged<double> onChanged, {
+    int? divisions,
+    String? helpText,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("$label: ${value.toStringAsFixed(1)}", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "$label: ${value.toStringAsFixed(1)}",
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            if (helpText != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  helpText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+          ],
+        ),
         Slider(
           value: value,
           min: min,
@@ -207,7 +350,6 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
     final market = rec['market_intelligence']?['best_market'] ?? {};
     final weather = rec['weather_summary'] ?? {};
     final pestAlerts = rec['pest_alerts'] ?? [];
-    final regionalInsight = rec['regional_insight'];
     final cropDetails = rec['crop_details'] ?? {};
 
     return Column(
@@ -216,27 +358,45 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
         Card(
           color: Colors.green[50],
           elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Column(
             children: [
               ListTile(
                 contentPadding: const EdgeInsets.all(16),
                 leading: const Icon(Icons.eco, size: 50, color: Colors.green),
-                title: const Text("Recommended Crop", style: TextStyle(fontSize: 16)),
+                title: const Text(
+                  "Recommended Crop",
+                  style: TextStyle(fontSize: 16),
+                ),
                 subtitle: Text(
                   rec['recommended_crop'] ?? "Unknown",
-                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.green),
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
                 ),
                 trailing: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text("Confidence", style: TextStyle(fontSize: 12)),
-                    Text("${rec['confidence'] ?? '0%'}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(
+                      "${rec['confidence'] ?? '0%'}",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                   ],
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -244,7 +404,9 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => ShopScreen(product: "${rec['recommended_crop']} Seeds"),
+                          builder: (context) => ShopScreen(
+                            product: "${rec['recommended_crop']} Seeds",
+                          ),
                         ),
                       );
                     },
@@ -267,7 +429,9 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
         Card(
           color: Colors.blue[50],
           elevation: 3,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -277,11 +441,22 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
                   children: [
                     Icon(Icons.psychology, color: Colors.blue),
                     SizedBox(width: 8),
-                    Text("AI Insight: Why this crop?", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue)),
+                    Text(
+                      "AI Insight: Why this crop?",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
+                    ),
                   ],
                 ),
                 const Divider(),
-                Text(rec['explanation'] ?? "Recommended based on optimal soil nutrient levels and regional climate patterns.", style: const TextStyle(fontSize: 15)),
+                Text(
+                  rec['explanation'] ??
+                      "Recommended based on optimal soil nutrient levels and regional climate patterns.",
+                  style: const TextStyle(fontSize: 15),
+                ),
               ],
             ),
           ),
@@ -292,7 +467,9 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
         if (cropDetails.isNotEmpty)
           Card(
             elevation: 3,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -302,16 +479,29 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
                     children: [
                       Icon(Icons.menu_book, color: Colors.teal),
                       SizedBox(width: 8),
-                      Text("Quick Farming Guide", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(
+                        "Quick Farming Guide",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                   const Divider(),
                   Text("Duration: ${cropDetails['duration'] ?? 'N/A'}"),
                   Text("Ideal Soil pH: ${cropDetails['soil_ph'] ?? 'N/A'}"),
-                  if (cropDetails['tips'] != null && (cropDetails['tips'] as List).isNotEmpty) ...[
+                  if (cropDetails['tips'] != null &&
+                      (cropDetails['tips'] as List).isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    Text("Tip: ${(cropDetails['tips'] as List).first}", style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.green)),
-                  ]
+                    Text(
+                      "Tip: ${(cropDetails['tips'] as List).first}",
+                      style: const TextStyle(
+                        fontStyle: FontStyle.italic,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -319,42 +509,67 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
         const SizedBox(height: 10),
 
         // Regional Insight
-        if (regionalInsight != null)
-          Card(
-            color: Colors.blue[50],
-            elevation: 3,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.history, color: Colors.indigo),
-                      SizedBox(width: 8),
-                      Text("Regional History", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    ],
+        Card(
+          color: Colors.blue[50],
+          elevation: 3,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.history, color: Colors.indigo),
+                    SizedBox(width: 8),
+                    Text(
+                      "Regional History",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                if (rec['regional_insight'] != null && rec['regional_insight']['note'] != null)
+                  Text(rec['regional_insight']['note'])
+                else if (rec['regional_insight'] != null) ...[
+                  Text(
+                    "Historical Yield: ${rec['regional_insight']['historical_yield_in_district']} Tonnes/Hectare",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  const Divider(),
-                  if (regionalInsight['note'] != null)
-                    Text(regionalInsight['note'])
-                  else ...[
-                    Text("Historical Yield: ${regionalInsight['historical_yield_in_district']} Tonnes/Hectare", style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text("Suitability: ${regionalInsight['suitability']}", style: TextStyle(color: regionalInsight['suitability'].toString().contains("High") ? Colors.green : Colors.orange, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text("Top Regional Performer: ${regionalInsight['regional_top_performer']} (${regionalInsight['regional_top_yield']} T/H)"),
-                  ]
+                  Text(
+                    "Suitability: ${rec['regional_insight']['suitability']}",
+                    style: TextStyle(
+                      color:
+                          rec['regional_insight']['suitability'].toString().contains(
+                                "High",
+                              )
+                          ? Colors.green
+                          : Colors.orange,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Top Regional Performer: ${rec['regional_insight']['regional_top_performer']} (${rec['regional_insight']['regional_top_yield']} T/H)",
+                  ),
                 ],
-              ),
+              ],
             ),
           ),
+        ),
         const SizedBox(height: 10),
 
         // Market & Revenue
         Card(
           elevation: 3,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -364,15 +579,38 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
                   children: [
                     Icon(Icons.currency_rupee, color: Colors.orange),
                     SizedBox(width: 8),
-                    Text("Market Intelligence", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(
+                      "Market Intelligence",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
                 const Divider(),
-                Text("Best Mandi: ${market['market'] ?? 'N/A'} (${market['district'] ?? ''})"),
-                Text("Modal Price: Rs ${market['price'] ?? '0'} / ${market['unit'] ?? 'Qtl'}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                Text(
+                  "Best Mandi: ${market['market'] ?? 'N/A'} (${market['district'] ?? ''})",
+                ),
+                Text(
+                  "Modal Price: Rs ${market['price'] ?? '0'} / ${market['unit'] ?? 'Qtl'}",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text("Estimated Yield: ${rec['estimated_yield_tons'] ?? 'N/A'} Tons", style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text("Potential Revenue: Rs ${rec['market_intelligence']?['estimated_revenue'] ?? 'N/A'}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                Text(
+                  "Estimated Yield: ${rec['estimated_yield_tons'] ?? 'N/A'} Tons",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  "Potential Revenue: Rs ${rec['market_intelligence']?['estimated_revenue'] ?? 'N/A'}",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
               ],
             ),
           ),
@@ -382,7 +620,9 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
         // Weather
         Card(
           elevation: 3,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -392,12 +632,22 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
                   children: [
                     Icon(Icons.cloud, color: Colors.blue),
                     SizedBox(width: 8),
-                    Text("Weather Summary", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(
+                      "Weather Summary",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
                 const Divider(),
-                Text("Temperature: ${weather['avg_temp']?.toStringAsFixed(1) ?? 'N/A'} C"),
-                Text("Rainfall: ${weather['total_rainfall']?.toStringAsFixed(1) ?? 'N/A'}mm"),
+                Text(
+                  "Temperature: ${weather['avg_temp']?.toStringAsFixed(1) ?? 'N/A'} C",
+                ),
+                Text(
+                  "Rainfall: ${weather['total_rainfall']?.toStringAsFixed(1) ?? 'N/A'}mm",
+                ),
               ],
             ),
           ),
@@ -409,7 +659,9 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
           Card(
             color: Colors.red[50],
             elevation: 3,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -419,7 +671,14 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
                     children: [
                       Icon(Icons.warning, color: Colors.red),
                       SizedBox(width: 8),
-                      Text("Pest Risk Alert", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
+                      Text(
+                        "Pest Risk Alert",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red,
+                        ),
+                      ),
                     ],
                   ),
                   const Divider(),
@@ -429,12 +688,20 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Pest: ${alert['pest']}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                          Text("Risk Level: ${alert['risk_level']}", style: const TextStyle(color: Colors.red)),
-                          Text("Recommended Action: ${alert['recommendation']}"),
+                          Text(
+                            "Pest: ${alert['pest']}",
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            "Risk Level: ${alert['risk_level']}",
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                          Text(
+                            "Recommended Action: ${alert['recommendation']}",
+                          ),
                         ],
                       ),
-                    )
+                    ),
                 ],
               ),
             ),
