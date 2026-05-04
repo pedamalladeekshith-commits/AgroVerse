@@ -203,13 +203,17 @@ class _SoilPredictionScreenState extends State<SoilPredictionScreen> {
 
   String _getSoilAdvice(String type) {
     switch (type.toLowerCase()) {
-      case 'alluvial': return "Excellent for rice, wheat, and sugarcane. Highly fertile.";
-      case 'black': return "Best for cotton and oilseeds. Retains moisture well.";
+      case 'alluvial':
+      case 'alluvial soil': return "Excellent for rice, wheat, and sugarcane. Highly fertile.";
+      case 'black':
+      case 'black soil': return "Best for cotton and oilseeds. Retains moisture well.";
       case 'clayey': return "Good for water-intensive crops like paddy. Needs drainage.";
       case 'laterite': return "Suitable for tea, coffee, and cashew nuts with proper fertilization.";
       case 'loamy': return "Ideal for most crops including vegetables and fruits.";
-      case 'red': return "Suitable for millets and pulses. Requires irrigation.";
+      case 'red':
+      case 'red soil': return "Suitable for millets and pulses. Requires irrigation.";
       case 'sandy': return "Best for melons, coconut, and cactus. Needs frequent watering.";
+      case 'cinder soil': return "Usually low in organic matter. Add compost and test nutrients before planting.";
       default: return "Consult an expert for detailed soil health management.";
     }
   }

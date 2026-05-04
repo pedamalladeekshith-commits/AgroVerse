@@ -1,11 +1,12 @@
 flask
 flask-cors
-tensorflow
+gunicorn
+tensorflow-cpu
 numpy
 pandas
 scikit-learn
 joblib
 pillow
-gunicorn
+opencv-python-headless
 requests
 geopy

@@ -16,6 +16,7 @@ class _PestDiseaseDetectionScreenState extends State<PestDiseaseDetectionScreen>
   final picker = ImagePicker();
   String? _result;
   String? _confidence;
+  String? _treatment;
   bool _loading = false;
   String? _error;
 
@@ -27,6 +28,7 @@ class _PestDiseaseDetectionScreenState extends State<PestDiseaseDetectionScreen>
         _image = File(pickedFile.path);
         _result = null;
         _confidence = null;
+        _treatment = null;
         _error = null;
       });
       _analyzeImage();
@@ -46,6 +48,7 @@ class _PestDiseaseDetectionScreenState extends State<PestDiseaseDetectionScreen>
       setState(() {
         _result = response['prediction'];
         _confidence = response['confidence'];
+        _treatment = response['treatment'];
       });
     } catch (e) {
       setState(() {
@@ -187,8 +190,8 @@ class _PestDiseaseDetectionScreenState extends State<PestDiseaseDetectionScreen>
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 10),
-                      const Text(
-                        "- Apply recommended organic fungicide.\n- Remove infected leaves immediately to prevent spread.\n- Ensure proper spacing between plants.",
+                      Text(
+                        _treatment ?? "Consult an agricultural expert for specific treatment.",
                         style: TextStyle(fontSize: 16, height: 1.5),
                       ),
                       const SizedBox(height: 20),

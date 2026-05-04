@@ -18,7 +18,7 @@ pip install -r requirements.txt
 3. Start the API:
 
 ```powershell
-gunicorn --chdir backend server:app --workers 3 --timeout 120
+gunicorn --chdir backend server:app --workers 1 --threads 2 --timeout 180
 ```
 
 For local development, you can also run:
@@ -40,7 +40,7 @@ GET /health
 - `MARKET_API_KEY`
 - `PORT`
 
-If you do not set the API secret, the app defaults to `AGROVERSE_SECRET_TOKEN_2026`.
+If you do not set the API secret, the app defaults to `myAgroversePrivateKey2026`.
 
 ## Flutter Run
 
@@ -85,7 +85,7 @@ Recommended Render setup:
 
 1. Create a new Web Service from this repo.
 2. Confirm build command: `pip install -r requirements.txt`
-3. Confirm start command: `gunicorn --chdir backend server:app --workers 3 --timeout 120`
+3. Confirm start command: `gunicorn --chdir backend server:app --workers 1 --threads 2 --timeout 180`
 4. Set environment variables for API keys and secret.
 
 ## Notes

@@ -3,6 +3,34 @@ import os
 
 API_KEY = os.getenv("WEATHER_API_KEY", "4ae8bf4d587a4ddb88b144032260603")
 
+FALLBACK_WEATHER = {
+    "bangalore": {"avg_temp": 24.0, "avg_humidity": 68.0, "total_rainfall": 55.0, "region": "Karnataka"},
+    "bengaluru": {"avg_temp": 24.0, "avg_humidity": 68.0, "total_rainfall": 55.0, "region": "Karnataka"},
+    "mysore": {"avg_temp": 25.0, "avg_humidity": 70.0, "total_rainfall": 48.0, "region": "Karnataka"},
+    "hyderabad": {"avg_temp": 29.0, "avg_humidity": 58.0, "total_rainfall": 32.0, "region": "Telangana"},
+    "mumbai": {"avg_temp": 30.0, "avg_humidity": 75.0, "total_rainfall": 70.0, "region": "Maharashtra"},
+    "pune": {"avg_temp": 27.0, "avg_humidity": 62.0, "total_rainfall": 40.0, "region": "Maharashtra"},
+    "delhi": {"avg_temp": 31.0, "avg_humidity": 45.0, "total_rainfall": 20.0, "region": "Delhi"},
+    "chennai": {"avg_temp": 31.0, "avg_humidity": 72.0, "total_rainfall": 45.0, "region": "Tamil Nadu"},
+}
+
+
+def _fallback_seasonal_weather(city, reason):
+    profile = FALLBACK_WEATHER.get((city or "").strip().lower())
+    if profile is None:
+        profile = {"avg_temp": 27.0, "avg_humidity": 65.0, "total_rainfall": 45.0, "region": "India"}
+
+    return {
+        "avg_temp": profile["avg_temp"],
+        "avg_humidity": profile["avg_humidity"],
+        "total_rainfall": profile["total_rainfall"],
+        "city": city or "Unknown",
+        "region": profile["region"],
+        "condition": "Estimated seasonal average",
+        "is_fallback": True,
+        "fallback_reason": str(reason),
+    }, None
+
 def get_seasonal_weather(city):
     """
     Fetches 7-day forecast and computes averages for seasonal prediction.
@@ -41,7 +69,7 @@ def get_seasonal_weather(city):
             "is_fallback": response.url.find(city) == -1 # Mark if fallback was used
         }, None
     except Exception as e:
-        return None, f"Forecast API Error: {str(e)}"
+        return _fallback_seasonal_weather(city, e)
 
 def get_weather_by_coords(lat, lon):
     url = f"http://api.weatherapi.com/v1/current.json?key={API_KEY}&q={lat},{lon}"

@@ -89,17 +89,23 @@ class ApiService {
       }
     } else {
       if (contentType.contains('application/json')) {
-        try {
-          final errorData = jsonDecode(response.body);
-          final error = errorData['error'] ?? 'Unknown server error';
-          throw Exception(error);
-        } catch (e) {
-          throw Exception('Server returned error ${response.statusCode}');
-        }
+        final errorData = jsonDecode(response.body);
+        final error = errorData['message'] ?? errorData['error'] ?? 'Unknown server error';
+        throw Exception(error);
       } else {
         throw Exception('Server Error (${response.statusCode}): The request could not be processed.');
       }
     }
+  }
+
+  static String _formatConfidence(dynamic value) {
+    if (value == null) return '0%';
+    if (value is String) return value.contains('%') ? value : '$value%';
+    if (value is num) {
+      final percent = value <= 1 ? value * 100 : value;
+      return '${percent.toStringAsFixed(1)}%';
+    }
+    return value.toString();
   }
 
   static Future<Map<String, dynamic>> getCurrentWeather({String? city, double? lat, double? lon}) async {
@@ -127,7 +133,9 @@ class ApiService {
 
       final streamedResponse = await request.send().timeout(_multipartTimeout);
       final response = await http.Response.fromStream(streamedResponse);
-      return _handleResponse(response);
+      final result = Map<String, dynamic>.from(_handleResponse(response));
+      result['confidence'] = _formatConfidence(result['confidence']);
+      return result;
     } on SocketException catch (e) {
       if (kDebugMode) print("[ApiService] #$requestId SocketException (Multipart): $e");
       throw Exception('Connection error while uploading image. Please check your internet and backend status.');
@@ -152,7 +160,9 @@ class ApiService {
 
       final streamedResponse = await request.send().timeout(_multipartTimeout);
       final response = await http.Response.fromStream(streamedResponse);
-      return _handleResponse(response);
+      final result = Map<String, dynamic>.from(_handleResponse(response));
+      result['confidence'] = _formatConfidence(result['confidence']);
+      return result;
     } on SocketException catch (e) {
       if (kDebugMode) print("[ApiService] #$requestId SocketException (Multipart): $e");
       throw Exception('Connection error while uploading image. Please check your internet and backend status.');
