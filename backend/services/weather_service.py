@@ -14,11 +14,57 @@ FALLBACK_WEATHER = {
     "chennai": {"avg_temp": 31.0, "avg_humidity": 72.0, "total_rainfall": 180.0, "region": "Tamil Nadu"},
 }
 
+REGION_RAINFALL_PROFILE = {
+    "andhra pradesh": 110.0,
+    "assam": 190.0,
+    "bihar": 120.0,
+    "delhi": 60.0,
+    "goa": 220.0,
+    "gujarat": 80.0,
+    "haryana": 65.0,
+    "himachal pradesh": 85.0,
+    "karnataka": 150.0,
+    "kerala": 220.0,
+    "madhya pradesh": 105.0,
+    "maharashtra": 130.0,
+    "odisha": 165.0,
+    "punjab": 70.0,
+    "rajasthan": 45.0,
+    "tamil nadu": 180.0,
+    "telangana": 90.0,
+    "uttar pradesh": 95.0,
+    "uttarakhand": 140.0,
+    "west bengal": 180.0,
+}
+
+
+def _normalize_location(value):
+    return (value or "").strip().lower()
+
+
+def _crop_model_rainfall(city, region, forecast_rainfall):
+    """
+    The crop model was trained with climate-style rainfall values, not current
+    7-day precipitation. Use known location profiles first, then region
+    profiles, and keep the forecast value only when it is meaningfully higher.
+    """
+    city_key = _normalize_location(city)
+    region_key = _normalize_location(region)
+
+    profile = FALLBACK_WEATHER.get(city_key)
+    if profile:
+        return profile["total_rainfall"], "city_climate_profile"
+
+    if region_key in REGION_RAINFALL_PROFILE:
+        return REGION_RAINFALL_PROFILE[region_key], "region_climate_profile"
+
+    return max(float(forecast_rainfall or 0.0), 95.0), "india_climate_default"
+
 
 def _fallback_seasonal_weather(city, reason):
-    profile = FALLBACK_WEATHER.get((city or "").strip().lower())
+    profile = FALLBACK_WEATHER.get(_normalize_location(city))
     if profile is None:
-        profile = {"avg_temp": 27.0, "avg_humidity": 65.0, "total_rainfall": 45.0, "region": "India"}
+        profile = {"avg_temp": 27.0, "avg_humidity": 65.0, "total_rainfall": 95.0, "region": "India"}
 
     return {
         "avg_temp": profile["avg_temp"],
@@ -33,7 +79,7 @@ def _fallback_seasonal_weather(city, reason):
 
 
 def _fallback_current_weather(city, reason):
-    profile = FALLBACK_WEATHER.get((city or "").strip().lower())
+    profile = FALLBACK_WEATHER.get(_normalize_location(city))
     if profile is None:
         profile = {"avg_temp": 27.0, "avg_humidity": 65.0, "total_rainfall": 0.0, "region": "India"}
 
@@ -74,12 +120,19 @@ def get_seasonal_weather(city):
         
         avg_temp = sum(day['day']['avgtemp_c'] for day in forecast_days) / len(forecast_days)
         avg_humidity = sum(day['day']['avghumidity'] for day in forecast_days) / len(forecast_days)
-        total_rainfall = sum(day['day']['totalprecip_mm'] for day in forecast_days)
+        forecast_rainfall = sum(day['day']['totalprecip_mm'] for day in forecast_days)
+        total_rainfall, rainfall_source = _crop_model_rainfall(
+            data['location']['name'],
+            data['location']['region'],
+            forecast_rainfall,
+        )
         
         return {
             "avg_temp": round(avg_temp, 2),
             "avg_humidity": round(avg_humidity, 2),
             "total_rainfall": round(total_rainfall, 2),
+            "forecast_rainfall_7day": round(forecast_rainfall, 2),
+            "rainfall_source": rainfall_source,
             "city": data['location']['name'],
             "region": data['location']['region'],
             "condition": data['current']['condition']['text'],
