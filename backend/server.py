@@ -455,13 +455,19 @@ def recommend_crop():
         }
         features_df = pd.DataFrame([feat_dict])
         prediction = crop_model.predict(features_df)[0]
-        rec_crop_name = str(prediction).capitalize()
+        rec_crop_key = str(prediction).strip().lower()
+        rec_crop_name = rec_crop_key.capitalize()
 
-        user_crop = data.get("crop")
-        target_crop = (user_crop or rec_crop_name).capitalize()
+        target_crop = rec_crop_key
+        target_crop_display = rec_crop_name
         state = weather.get("region", "Karnataka")
 
-        crop_info = db["crops"].get(target_crop, db["crops"].get(rec_crop_name, {}))
+        crop_info = (
+            db["crops"].get(rec_crop_name)
+            or db["crops"].get(rec_crop_key)
+            or db["crops"].get(rec_crop_key.title())
+            or {}
+        )
         yield_per_hectare = crop_info.get("yield_per_hectare", 2.5)
         acre_to_hectare = land_size / 2.47
         total_yield_tons = round(yield_per_hectare * acre_to_hectare, 2)
@@ -473,7 +479,7 @@ def recommend_crop():
         if 6.0 <= ph_value <= 7.0:
             reasoning.append(f"Your soil pH ({ph_value}) is in the ideal neutral range.")
         if weather["avg_temp"] > 25:
-            reasoning.append(f"The high average temperature ({weather['avg_temp']} C) favors {target_crop}.")
+            reasoning.append(f"The high average temperature ({weather['avg_temp']} C) favors {target_crop_display}.")
         if weather["total_rainfall"] > 800:
             reasoning.append(f"Abundant seasonal rainfall ({weather['total_rainfall']}mm) provides natural irrigation.")
 
@@ -486,12 +492,13 @@ def recommend_crop():
         response = {
             "status": "success",
             "recommended_crop": rec_crop_name,
-            "target_crop_details": target_crop,
+            "target_crop_details": target_crop_display,
+            "model_input": feat_dict,
             "confidence": confidence,
             "weather_summary": weather,
             "market_intelligence": market_intel,
             "pest_alerts": detect_pest_risk(weather["avg_temp"], weather["avg_humidity"]),
-            "regional_insight": analyze_regional_suitability(city, target_crop),
+            "regional_insight": analyze_regional_suitability(city, target_crop_display),
             "crop_details": crop_info,
             "land_size_acres": land_size,
             "estimated_yield_tons": total_yield_tons,
