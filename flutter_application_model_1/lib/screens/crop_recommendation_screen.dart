@@ -37,7 +37,7 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
       _pValue = 42;
       _kValue = 43;
       _phValue = 6.5;
-      _cityController.text = "Bangalore";
+      _cityController.text = "Mumbai";
       _landSize = 5.0;
     });
     ScaffoldMessenger.of(context).showSnackBar(
@@ -118,12 +118,6 @@ class _CropRecommendationScreenState extends State<CropRecommendationScreen> {
       appBar: AppBar(
         title: const Text("Crop Advisory"),
         backgroundColor: Colors.green[800],
-        actions: [
-          TextButton(
-            onPressed: _enterDemoMode,
-            child: const Text("DEMO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          )
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),

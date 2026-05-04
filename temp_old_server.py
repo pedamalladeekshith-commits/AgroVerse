@@ -1,32 +1,13 @@
-from flask import Flask, request, jsonify
+﻿from flask import Flask, request, jsonify
 from flask_cors import CORS
 import tensorflow as tf
 import numpy as np
-from PIL import Image, ImageOps, UnidentifiedImageError
-from werkzeug.exceptions import HTTPException
+from PIL import Image
 import io
 import joblib
 import pandas as pd
-import gc
 import json
-import logging
 import os
-import threading
-import traceback
-
-# --- TensorFlow Memory Optimization ---
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["TF_NUM_INTRAOP_THREADS"] = "1"
-os.environ["TF_NUM_INTEROP_THREADS"] = "1"
-
-try:
-    import tensorflow as tf
-    tf.config.threading.set_intra_op_parallelism_threads(1)
-    tf.config.threading.set_inter_op_parallelism_threads(1)
-    tf.config.set_visible_devices([], 'GPU') # Force CPU to save driver overhead
-except Exception:
-    pass
 
 # Services
 from services.weather_service import get_seasonal_weather, get_weather_data
@@ -37,12 +18,6 @@ from services.schemes_service import get_all_schemes
 
 app = Flask(__name__)
 CORS(app)
-
-logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO"),
-    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
-)
-logger = logging.getLogger("agroverse-api")
 
 # --- Configuration ---
 API_KEY_SECRET = os.getenv("AGROVERSE_API_SECRET", "myAgroversePrivateKey2026")
@@ -56,14 +31,12 @@ def require_api_key(f):
         api_key = request.headers.get("x-api-key")
         if api_key and api_key == API_KEY_SECRET:
             return f(*args, **kwargs)
-        return jsonify({"status": "error", "error": "Unauthorized: Invalid API Key", "message": "Unauthorized: Invalid API Key"}), 401
+        return jsonify({"error": "Unauthorized: Invalid API Key"}), 401
 
     return decorated
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-logger.info("Current working directory: %s", os.getcwd())
-logger.info("Backend base directory: %s", BASE_DIR)
 
 SOIL_MODEL_PATH = os.path.join(BASE_DIR, "models", "soil_model.h5")
 PLANT_MODEL_PATH = os.path.join(BASE_DIR, "models", "plant_model.keras")
@@ -121,7 +94,6 @@ TREATMENT_DB = {
 models = {}
 db = {}
 resource_errors = {}
-image_model_lock = threading.Lock()
 
 
 def _load_json_file(path):
@@ -134,54 +106,13 @@ def _load_label_file(path):
         return [line.strip() for line in file_obj if line.strip()]
 
 
-def _json_success(**payload):
-    return jsonify({"status": "success", **payload})
-
-
-def _json_error(message, http_status=500, **payload):
-    return jsonify({"status": "error", "error": message, "message": message, **payload}), http_status
-
-
-def _validate_file(path, resource_name):
-    if not os.path.exists(path):
-        message = f"{resource_name} file not found: {path}"
-        logger.error(message)
-        raise FileNotFoundError(message)
-    if os.path.getsize(path) == 0:
-        message = f"{resource_name} file is empty: {path}"
-        logger.error(message)
-        raise FileNotFoundError(message)
-    logger.info("%s file found: %s (%s bytes)", resource_name, path, os.path.getsize(path))
-
-
 def _ensure_static_data():
     if "soil_labels" not in db:
-        _validate_file(SOIL_LABELS_PATH, "Soil labels")
         db["soil_labels"] = _load_label_file(SOIL_LABELS_PATH)
     if "plant_labels" not in db:
-        _validate_file(PLANT_LABELS_PATH, "Plant labels")
         db["plant_labels"] = _load_label_file(PLANT_LABELS_PATH)
     if "crops" not in db:
-        _validate_file(CROP_DETAILS_PATH, "Crop details")
         db["crops"] = _load_json_file(CROP_DETAILS_PATH)
-
-
-def _release_image_models_except(active_model_name):
-    released = []
-    # Forcefully clear everything from memory if we are switching
-    for loaded_model_name in ("soil", "plant"):
-        if loaded_model_name != active_model_name and loaded_model_name in models:
-            released.append(loaded_model_name)
-            del models[loaded_model_name]
-
-    if released:
-        logger.info("Released TensorFlow model(s) to save memory: %s", ", ".join(released))
-        try:
-            tf.keras.backend.clear_session()
-        except Exception:
-            pass
-        gc.collect()
-        gc.collect() # Double call to ensure nested objects are cleared
 
 
 def _load_model(model_name):
@@ -191,111 +122,38 @@ def _load_model(model_name):
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
     try:
         if model_name == "soil":
-            _release_image_models_except("soil")
-            _validate_file(SOIL_MODEL_PATH, "Soil model")
-            logger.info("Loading soil model from %s", SOIL_MODEL_PATH)
             models["soil"] = tf.keras.models.load_model(SOIL_MODEL_PATH, compile=False)
         elif model_name == "plant":
-            _release_image_models_except("plant")
-            _validate_file(PLANT_MODEL_PATH, "Plant disease model")
-            logger.info("Loading plant disease model from %s", PLANT_MODEL_PATH)
             models["plant"] = tf.keras.models.load_model(PLANT_MODEL_PATH, compile=False)
         elif model_name == "crop":
-            _validate_file(CROP_MODEL_PATH, "Crop model")
-            logger.info("Loading crop model from %s", CROP_MODEL_PATH)
             models["crop"] = joblib.load(CROP_MODEL_PATH)
         else:
             raise ValueError(f"Unknown model requested: {model_name}")
 
         resource_errors.pop(model_name, None)
-        logger.info("%s model loaded successfully", model_name)
         return models[model_name]
     except Exception as exc:
         resource_errors[model_name] = str(exc)
-        logger.exception("Failed to load %s model", model_name)
         raise
 
 
 def _model_not_ready_response(model_name, feature_name):
-    return _json_error(
-        f"{feature_name} is temporarily unavailable.",
-        503,
-        detail=resource_errors.get(model_name, "Model could not be loaded."),
-    )
-
-
-def _get_uploaded_image():
-    logger.info(
-        "Incoming %s request to %s content_type=%s files=%s",
-        request.method,
-        request.path,
-        request.content_type,
-        list(request.files.keys()),
-    )
-    file = request.files.get("file")
-    if file is None:
-        raise ValueError("No file uploaded. Send multipart/form-data with field name 'file'.")
-    if not file.filename:
-        raise ValueError("No file selected.")
-
-    image_bytes = file.read()
-    if not image_bytes:
-        raise ValueError("Uploaded file is empty.")
-
-    try:
-        image = Image.open(io.BytesIO(image_bytes))
-        image.verify()
-        image = Image.open(io.BytesIO(image_bytes))
-        image = ImageOps.exif_transpose(image)
-        image.thumbnail((1024, 1024))
-        image = image.convert("RGB")
-    except (UnidentifiedImageError, OSError, ValueError) as exc:
-        raise ValueError("Invalid or corrupt image file.") from exc
-
-    logger.info("Accepted image filename=%s size=%s mode=%s", file.filename, image.size, image.mode)
-    return image
-
-
-def _model_image_size(model, default_size):
-    input_shape = getattr(model, "input_shape", None)
-    if isinstance(input_shape, list):
-        input_shape = input_shape[0]
-    if input_shape and len(input_shape) >= 4 and input_shape[1] and input_shape[2]:
-        return int(input_shape[2]), int(input_shape[1])
-    return default_size
-
-
-def _prepare_image_array(image, target_size):
-    image = image.resize(target_size)
-    return np.expand_dims(np.asarray(image, dtype=np.float32), axis=0)
-
-
-def _prediction_scores(raw_prediction):
-    scores = np.asarray(raw_prediction, dtype=np.float32).reshape(-1)
-    if scores.size == 0:
-        raise ValueError("Model returned an empty prediction.")
-
-    if np.any(scores < 0) or not np.isclose(float(np.sum(scores)), 1.0, atol=1e-3):
-        scores = tf.nn.softmax(scores).numpy()
-    return scores
-
-
-@app.errorhandler(Exception)
-def handle_unexpected_error(exc):
-    if isinstance(exc, HTTPException):
-        return _json_error(exc.description, exc.code or 500)
-    logger.exception("Unhandled server error: %s", exc)
-    return _json_error("Internal server error. Check Render logs for details.", 500)
+    return jsonify(
+        {
+            "error": f"{feature_name} is temporarily unavailable.",
+            "detail": resource_errors.get(model_name, "Model could not be loaded."),
+        }
+    ), 503
 
 
 def initialize_server():
-    logger.info("%s", "\n" + "=" * 50 + "\n      AgroVerse Intelligence Server Booting\n" + "=" * 50)
+    print("\n" + "=" * 50 + "\n      AgroVerse Intelligence Server Booting\n" + "=" * 50)
     try:
         _ensure_static_data()
         _load_model("crop")
-        logger.info("Core advisory resources initialized.")
+        print("Core advisory resources initialized.")
     except Exception as exc:
-        logger.warning("Boot warning: %s", exc)
+        print(f"Boot warning: {exc}")
 
 
 initialize_server()
@@ -329,14 +187,11 @@ def health():
         {
             "status": "ok",
             "service": "agroverse-api",
-            "cwd": os.getcwd(),
-            "base_dir": BASE_DIR,
             "models": {
                 "crop": "loaded" if "crop" in models else "unavailable",
                 "plant": "loaded" if "plant" in models else "lazy",
                 "soil": "loaded" if "soil" in models else "lazy",
             },
-            "resource_errors": resource_errors,
         }
     )
 
@@ -389,8 +244,7 @@ def market_prices():
 
     records, error = get_market_prices(commodity, state, district)
     if error and not records:
-        logger.warning("Market service returned no records for %s/%s/%s: %s", commodity, state, district, error)
-        records = []
+        return jsonify({"error": error}), 503
 
     best = get_best_market(records)
 
@@ -404,7 +258,6 @@ def market_prices():
 
     return jsonify(
         {
-            "status": "success",
             "commodity": commodity.capitalize(),
             "best_market": best,
             "market_comparison": records,
@@ -420,7 +273,7 @@ def market_prices():
 def recommend_crop():
     data = request.get_json()
     if not data:
-        return _json_error("Missing input data", 400)
+        return jsonify({"error": "Missing input data"}), 400
 
     try:
         _ensure_static_data()
@@ -430,18 +283,14 @@ def recommend_crop():
 
     city = data.get("city")
     if not city:
-        return _json_error("City name is required", 400)
+        return jsonify({"error": "City name is required"}), 400
 
-    try:
-        land_size = float(data.get("land_size", 1.0))
-        if land_size <= 0:
-            raise ValueError("Land size must be greater than zero.")
-    except (TypeError, ValueError) as exc:
-        return _json_error(f"Invalid land_size: {exc}", 400)
+    land_size = float(data.get("land_size", 1.0))
+    user_crop = data.get("crop")
 
     weather, error = get_seasonal_weather(city)
     if error:
-        return _json_error(error, 503)
+        return jsonify({"error": error}), 503
 
     try:
         feat_dict = {
@@ -457,7 +306,6 @@ def recommend_crop():
         prediction = crop_model.predict(features_df)[0]
         rec_crop_name = str(prediction).capitalize()
 
-        user_crop = data.get("crop")
         target_crop = (user_crop or rec_crop_name).capitalize()
         state = weather.get("region", "Karnataka")
 
@@ -478,16 +326,11 @@ def recommend_crop():
             reasoning.append(f"Abundant seasonal rainfall ({weather['total_rainfall']}mm) provides natural irrigation.")
 
         explanation = " ".join(reasoning) if reasoning else f"AI recommends {rec_crop_name} based on nutrient profile."
-        if hasattr(crop_model, "predict_proba"):
-            confidence = f"{float(np.max(crop_model.predict_proba(features_df)[0])):.0%}"
-        else:
-            confidence = "N/A"
 
         response = {
-            "status": "success",
             "recommended_crop": rec_crop_name,
             "target_crop_details": target_crop,
-            "confidence": confidence,
+            "confidence": f"{float(np.max(crop_model.predict_proba(features_df)[0])):.0%}",
             "weather_summary": weather,
             "market_intelligence": market_intel,
             "pest_alerts": detect_pest_risk(weather["avg_temp"], weather["avg_humidity"]),
@@ -497,119 +340,92 @@ def recommend_crop():
             "estimated_yield_tons": total_yield_tons,
             "explanation": explanation,
         }
-        logger.info("Crop recommendation city=%s crop=%s confidence=%s fallback_weather=%s", city, rec_crop_name, confidence, weather.get("is_fallback"))
         return jsonify(response)
-    except (TypeError, ValueError) as exc:
-        logger.warning("Bad crop recommendation request: %s", exc)
-        return _json_error(f"Invalid crop recommendation input: {str(exc)}", 400)
     except Exception as exc:
-        logger.error("Advisory Pipeline Error: %s\n%s", exc, traceback.format_exc())
-        return _json_error(f"Advisory Pipeline Error: {str(exc)}", 500)
+        import traceback
 
-
-@app.route("/recommend", methods=["POST"])
-@require_api_key
-def recommend():
-    return recommend_crop()
+        print(traceback.format_exc())
+        return jsonify({"error": f"Advisory Pipeline Error: {str(exc)}"}), 500
 
 
 @app.route("/predict_soil", methods=["POST"])
 @require_api_key
 def predict_soil():
     try:
-        img = _get_uploaded_image()
-    except ValueError as exc:
-        logger.warning("Bad soil prediction request: %s", exc)
-        return _json_error(str(exc), 400)
-
-    try:
         _ensure_static_data()
-        with image_model_lock:
-            soil_model = _load_model("soil")
-            arr = _prepare_image_array(img, _model_image_size(soil_model, (128, 128)))
-            preds = soil_model.predict(arr, verbose=0)[0]
+        soil_model = _load_model("soil")
     except Exception:
         return _model_not_ready_response("soil", "Soil analysis")
 
     try:
-        scores = _prediction_scores(preds)
-        idx = int(np.argmax(scores))
+        file = request.files.get("file")
+        if not file:
+            return jsonify({"error": "No file uploaded"}), 400
+
+        try:
+            img = Image.open(io.BytesIO(file.read())).convert("RGB").resize((128, 128))
+        except Exception:
+            return jsonify({"error": "Invalid image file"}), 400
+
+        arr = np.expand_dims(np.array(img, dtype=np.float32), 0)
+        preds = soil_model(arr, training=False).numpy()[0]
+        idx = int(np.argmax(preds))
 
         if idx >= len(db["soil_labels"]):
             raise ValueError("Soil labels are out of sync with the loaded model.")
 
-        logger.info("Soil prediction idx=%s label=%s confidence=%.4f", idx, db["soil_labels"][idx], float(scores[idx]))
-        return _json_success(
-            soil_type=db["soil_labels"][idx],
-            prediction=db["soil_labels"][idx],
-            confidence=f"{float(scores[idx]):.1%}",
-            confidence_score=round(float(scores[idx]), 4),
+        return jsonify(
+            {
+                "soil_type": db["soil_labels"][idx],
+                "confidence": f"{preds[idx]:.1%}",
+            }
         )
-    except ValueError as exc:
-        logger.warning("Bad soil prediction request: %s", exc)
-        return _json_error(str(exc), 400)
     except Exception as exc:
-        logger.error("Soil Analysis Error: %s\n%s", exc, traceback.format_exc())
-        return _json_error(f"Soil Analysis Error: {str(exc)}", 500)
+        return jsonify({"error": f"Soil Analysis Error: {str(exc)}"}), 500
 
 
 @app.route("/predict_plant", methods=["POST"])
 @require_api_key
 def predict_plant():
     try:
-        img = _get_uploaded_image()
-    except ValueError as exc:
-        logger.warning("Bad plant prediction request: %s", exc)
-        return _json_error(str(exc), 400)
-
-    try:
         _ensure_static_data()
-        with image_model_lock:
-            plant_model = _load_model("plant")
-            arr = _prepare_image_array(img, _model_image_size(plant_model, (224, 224)))
-            preds = plant_model.predict(arr, verbose=0)[0]
+        plant_model = _load_model("plant")
     except Exception:
         return _model_not_ready_response("plant", "Disease detection")
 
     try:
-        scores = _prediction_scores(preds)
-        idx = int(np.argmax(scores))
+        file = request.files.get("file")
+        if not file:
+            return jsonify({"error": "No file uploaded"}), 400
+
+        try:
+            img = Image.open(io.BytesIO(file.read())).convert("RGB").resize((224, 224))
+        except Exception:
+            return jsonify({"error": "Invalid image file"}), 400
+
+        arr = np.expand_dims(np.array(img, dtype=np.float32), 0)
+        preds = plant_model(arr, training=False).numpy()[0]
+        idx = int(np.argmax(preds))
 
         if idx >= len(db["plant_labels"]):
             raise ValueError("Plant labels are out of sync with the loaded model.")
 
         disease_name = db["plant_labels"][idx]
         treatment = TREATMENT_DB.get(disease_name, "Consult an agricultural expert for specific treatment.")
-        display_name = disease_name.replace("___", " ").replace("_", " ")
 
-        logger.info(
-            "Plant prediction idx=%s raw_label=%s confidence=%.4f",
-            idx,
-            disease_name,
-            float(scores[idx]),
+        return jsonify(
+            {
+                "prediction": disease_name.replace("___", " ").replace("_", " "),
+                "confidence": f"{preds[idx]:.1%}",
+                "treatment": treatment,
+            }
         )
-        return _json_success(
-            prediction=display_name,
-            disease=disease_name,
-            confidence=f"{float(scores[idx]):.1%}",
-            confidence_score=round(float(scores[idx]), 4),
-            treatment=treatment,
-        )
-    except ValueError as exc:
-        logger.warning("Bad plant prediction request: %s", exc)
-        return _json_error(str(exc), 400)
     except Exception as exc:
-        logger.error("Disease Detection Error: %s\n%s", exc, traceback.format_exc())
-        return _json_error(f"Disease Detection Error: {str(exc)}", 500)
-
-
-@app.route("/predict", methods=["POST"])
-@require_api_key
-def predict():
-    return predict_plant()
+        return jsonify({"error": f"Disease Detection Error: {str(exc)}"}), 500
 
 
 @app.route("/schemes", methods=["GET"])
+@require_api_key
 def get_schemes():
     return jsonify(get_all_schemes())
 
