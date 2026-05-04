@@ -29,7 +29,7 @@ class CropRecommendationAgent:
             self.hist_db = json.load(open(sum_p)) if os.path.exists(sum_p) else None
         except Exception: self.crop_db, self.hist_db = {}, None
         
-        try: self.model = joblib.load(os.path.join(self.base_path, 'models', 'crop_model.pkl'))
+        try: self.model = joblib.load(os.path.join(self.base_path, 'backend', 'models', 'crop_model.pkl'))
         except Exception: self.model = None
 
     def get_input(self, prompt, type_func=str, min_val=None, max_val=None, options=None):

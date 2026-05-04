@@ -8,13 +8,12 @@ import time
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Model Paths
-SOIL_MODEL_PATH = os.path.join(BASE_DIR, 'models', 'soil_model.h5')
-# Root contains plant_model.keras
-PLANT_MODEL_PATH = os.path.join(BASE_DIR, 'plant_model.keras')
+SOIL_MODEL_PATH = os.path.join(BASE_DIR, 'backend', 'models', 'soil_model.h5')
+PLANT_MODEL_PATH = os.path.join(BASE_DIR, 'backend', 'models', 'plant_model.keras')
 
 # Label Paths
-SOIL_LABELS_PATH = os.path.join(BASE_DIR, 'datasets', 'soil', 'soil_labels.txt')
-PLANT_LABELS_PATH = os.path.join(BASE_DIR, 'datasets', 'plant_disease', 'plant_labels.txt')
+SOIL_LABELS_PATH = os.path.join(BASE_DIR, 'backend', 'models', 'soil_labels.txt')
+PLANT_LABELS_PATH = os.path.join(BASE_DIR, 'backend', 'models', 'plant_labels.txt')
 
 # Image settings (Must match training dimensions)
 SOIL_IMG_SIZE = (128, 128)
