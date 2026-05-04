@@ -507,6 +507,12 @@ def recommend_crop():
         return _json_error(f"Advisory Pipeline Error: {str(exc)}", 500)
 
 
+@app.route("/recommend", methods=["POST"])
+@require_api_key
+def recommend():
+    return recommend_crop()
+
+
 @app.route("/predict_soil", methods=["POST"])
 @require_api_key
 def predict_soil():
@@ -597,8 +603,13 @@ def predict_plant():
         return _json_error(f"Disease Detection Error: {str(exc)}", 500)
 
 
-@app.route("/schemes", methods=["GET"])
+@app.route("/predict", methods=["POST"])
 @require_api_key
+def predict():
+    return predict_plant()
+
+
+@app.route("/schemes", methods=["GET"])
 def get_schemes():
     return jsonify(get_all_schemes())
 

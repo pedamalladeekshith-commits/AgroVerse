@@ -4,14 +4,14 @@ import os
 API_KEY = os.getenv("WEATHER_API_KEY", "4ae8bf4d587a4ddb88b144032260603")
 
 FALLBACK_WEATHER = {
-    "bangalore": {"avg_temp": 24.0, "avg_humidity": 68.0, "total_rainfall": 55.0, "region": "Karnataka"},
-    "bengaluru": {"avg_temp": 24.0, "avg_humidity": 68.0, "total_rainfall": 55.0, "region": "Karnataka"},
-    "mysore": {"avg_temp": 25.0, "avg_humidity": 70.0, "total_rainfall": 48.0, "region": "Karnataka"},
-    "hyderabad": {"avg_temp": 29.0, "avg_humidity": 58.0, "total_rainfall": 32.0, "region": "Telangana"},
-    "mumbai": {"avg_temp": 30.0, "avg_humidity": 75.0, "total_rainfall": 70.0, "region": "Maharashtra"},
-    "pune": {"avg_temp": 27.0, "avg_humidity": 62.0, "total_rainfall": 40.0, "region": "Maharashtra"},
-    "delhi": {"avg_temp": 31.0, "avg_humidity": 45.0, "total_rainfall": 20.0, "region": "Delhi"},
-    "chennai": {"avg_temp": 31.0, "avg_humidity": 72.0, "total_rainfall": 45.0, "region": "Tamil Nadu"},
+    "bangalore": {"avg_temp": 24.0, "avg_humidity": 68.0, "total_rainfall": 150.0, "region": "Karnataka"},
+    "bengaluru": {"avg_temp": 24.0, "avg_humidity": 68.0, "total_rainfall": 150.0, "region": "Karnataka"},
+    "mysore": {"avg_temp": 25.0, "avg_humidity": 70.0, "total_rainfall": 120.0, "region": "Karnataka"},
+    "hyderabad": {"avg_temp": 29.0, "avg_humidity": 58.0, "total_rainfall": 80.0, "region": "Telangana"},
+    "mumbai": {"avg_temp": 30.0, "avg_humidity": 75.0, "total_rainfall": 250.0, "region": "Maharashtra"},
+    "pune": {"avg_temp": 27.0, "avg_humidity": 62.0, "total_rainfall": 110.0, "region": "Maharashtra"},
+    "delhi": {"avg_temp": 31.0, "avg_humidity": 45.0, "total_rainfall": 60.0, "region": "Delhi"},
+    "chennai": {"avg_temp": 31.0, "avg_humidity": 72.0, "total_rainfall": 180.0, "region": "Tamil Nadu"},
 }
 
 
